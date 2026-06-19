@@ -127,6 +127,38 @@ describe("simulation shift vertical slice", () => {
     expect(state.incidents[0]!.assignedUnitIds).toEqual(assigned);
   });
 
+  it("assigns cached routes and updates en-route unit locations on coarse ticks", async () => {
+    const config = withOnlyIncident(await loadConfig(process.cwd()), "chest_pain");
+    let state = startShift(config, { seed: "routed-movement", startTimeSeconds: 0 });
+    const incident = state.incidents[0]!;
+    const startLocation = state.units.tampere_epi121!.location;
+
+    state = advanceSimulation(state, incident.reportDueAt);
+    state = classifyIncident(state, incident.id, "704", "B");
+    state = dispatchUnits(state, {
+      incidentId: incident.id,
+      unitIds: ["tampere_epi121", "tampere_epi131"]
+    });
+
+    const advancedUnit = state.units.tampere_epi121!;
+    const basicUnit = state.units.tampere_epi131!;
+    expect(advancedUnit.route).toEqual(expect.objectContaining({
+      provider: "straight-line-cache",
+      cacheKey: basicUnit.route!.cacheKey
+    }));
+    expect(advancedUnit.route!.geometry.length).toBeGreaterThanOrEqual(2);
+    expect(advancedUnit.routeStartedAt).toBeGreaterThanOrEqual(advancedUnit.dispatchedAt!);
+
+    const afterTurnout = advanceSimulation(state, advancedUnit.routeStartedAt! - state.clock.now + 20);
+    expect(afterTurnout.units.tampere_epi121!.locationUpdatedAt).toBe(advancedUnit.routeStartedAt! + 15);
+    expect(afterTurnout.units.tampere_epi121!.location).not.toEqual(startLocation);
+    expect(afterTurnout.units.tampere_epi121!.status).toBe("en_route");
+
+    const arrived = advanceSimulation(afterTurnout, advancedUnit.arrivalAt! - afterTurnout.clock.now);
+    expect(arrived.units.tampere_epi121!.location).toEqual(incident.location);
+    expect(arrived.units.tampere_epi121!.status).toMatch(/on_scene|committed_on_scene/);
+  });
+
   it("commits and releases units that arrive after an incident was already controlled", async () => {
     const config = withOnlyIncident(await loadConfig(process.cwd()), "apartment_fire");
     let state = startShift(config, { seed: "staggered-release", startTimeSeconds: 0 });

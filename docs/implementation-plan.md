@@ -65,8 +65,8 @@ Completed:
 
 Current implementation focus:
 
-- Harden the browser-verified dispatch UI and prepare for the map/routing milestone.
-- Keep routing mocked or straight-line until the map/routing milestone.
+- Harden the map/routing slice and prepare for scoring/debrief persistence.
+- Keep external OSRM integration optional behind the routing abstraction until richer routing data is needed.
 
 ## Milestone 0: Thin Playable Vertical Slice
 
@@ -237,15 +237,19 @@ Completed:
 
 Goal: make the spatial game real.
 
-Likely tasks:
+Status: complete for the first spatial slice.
 
-- Configure MapLibre tiles.
-- Display stations, hospitals, units, incidents, and routes.
-- Integrate OSRM or routing abstraction.
-- Cache route results.
-- Move units along routed geometry.
-- Publish coarse 10-15 simulated second location updates.
-- Optionally interpolate movement in the frontend.
+Completed:
+
+- Added MapLibre to the web app with OpenStreetMap raster tile configuration.
+- Replaced the placeholder spatial view with a MapLibre map.
+- Display stations, hospitals, reported incidents, units, and active en-route route lines.
+- Added a cache-backed routing abstraction in the shared simulation package.
+- Kept the first routing provider deterministic and local while preserving an OSRM-ready boundary.
+- Store route geometry, route timing, and route cache keys on dispatched unit state.
+- Move en-route units along routed geometry after turnout.
+- Publish coarse 15 simulated second location samples through normal shift state updates.
+- Added simulation regression coverage for cached route assignment and en-route location updates.
 
 ## Milestone 5: Scoring and Debrief
 

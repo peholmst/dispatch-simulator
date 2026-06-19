@@ -1,5 +1,6 @@
 import type { CapabilityMap, LoadedConfig } from "../config/index.js";
 import type { Coordinates } from "./geometry.js";
+import type { RouteResult } from "./routing.js";
 
 export type SimulationClockMode = "running" | "paused";
 
@@ -51,6 +52,9 @@ export interface UnitSimulationState {
   stationId: string;
   location: Coordinates;
   destination?: Coordinates;
+  route?: RouteResult;
+  routeStartedAt?: number;
+  locationUpdatedAt?: number;
   incidentId?: string;
   dispatchedAt?: number;
   arrivalAt?: number;

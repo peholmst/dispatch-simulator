@@ -1,11 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
+import maplibregl, { type GeoJSONSource, type LngLatBoundsLike, type StyleSpecification } from "maplibre-gl";
 import type { IncidentSimulationState, ScheduledIncidentReport, ShiftDebrief, ShiftState, UnitSimulationState } from "@dispatch-simulator/shared";
+import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
 
 interface ApiState {
   shift?: ShiftState;
   debrief?: ShiftDebrief;
+}
+
+type MapFeature = {
+  type: "Feature";
+  properties: Record<string, string | boolean>;
+  geometry: {
+    type: "Point" | "LineString";
+    coordinates: number[] | number[][];
+  };
+};
+
+interface MapFeatureCollection {
+  type: "FeatureCollection";
+  features: MapFeature[];
 }
 
 const apiHeaders = { "Content-Type": "application/json" };
@@ -88,6 +104,182 @@ function ReportRow({ report, linked, split, onLink, onSplit }: {
       </div>
     </div>
   );
+}
+
+const mapStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    osm: {
+      type: "raster",
+      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tileSize: 256,
+      attribution: "OpenStreetMap"
+    }
+  },
+  layers: [
+    {
+      id: "osm",
+      type: "raster",
+      source: "osm"
+    }
+  ]
+};
+
+function emptyFeatureCollection(): MapFeatureCollection {
+  return { type: "FeatureCollection", features: [] };
+}
+
+function setSourceData(map: maplibregl.Map, sourceId: string, data: MapFeatureCollection): void {
+  const source = map.getSource(sourceId) as GeoJSONSource | undefined;
+  source?.setData(data);
+}
+
+function MapView({ shift, activeIncidentId }: {
+  shift?: ShiftState;
+  activeIncidentId?: string;
+}) {
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const mapRef = React.useRef<maplibregl.Map | null>(null);
+  const [mapLoaded, setMapLoaded] = useState(false);
+  const bounds = shift?.config.region.bounds;
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) {
+      return;
+    }
+
+    const center: [number, number] = bounds
+      ? [(bounds.west + bounds.east) / 2, (bounds.south + bounds.north) / 2]
+      : [23.76, 61.49];
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: mapStyle,
+      center,
+      zoom: 11,
+      attributionControl: { compact: true }
+    });
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+    map.on("load", () => {
+      map.addSource("routes", { type: "geojson", data: emptyFeatureCollection() });
+      map.addSource("points", { type: "geojson", data: emptyFeatureCollection() });
+      map.addLayer({
+        id: "routes",
+        type: "line",
+        source: "routes",
+        paint: {
+          "line-color": ["case", ["==", ["get", "active"], true], "#c94f39", "#5279bd"],
+          "line-width": ["case", ["==", ["get", "active"], true], 4, 2],
+          "line-opacity": 0.82
+        }
+      });
+      map.addLayer({
+        id: "points",
+        type: "circle",
+        source: "points",
+        paint: {
+          "circle-color": [
+            "match",
+            ["get", "kind"],
+            "station", "#315d8a",
+            "hospital", "#7b4ba0",
+            "incident", "#c94f39",
+            "unit", "#1f6f5b",
+            "#17211b"
+          ],
+          "circle-radius": [
+            "match",
+            ["get", "kind"],
+            "unit", 6,
+            "incident", 8,
+            5
+          ],
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-width": 2
+        }
+      });
+      map.addLayer({
+        id: "point-labels",
+        type: "symbol",
+        source: "points",
+        layout: {
+          "text-field": ["get", "label"],
+          "text-size": 11,
+          "text-offset": [0, 1.1],
+          "text-anchor": "top"
+        },
+        paint: {
+          "text-color": "#17211b",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.2
+        }
+      });
+      setMapLoaded(true);
+    });
+    mapRef.current = map;
+    return () => {
+      map.remove();
+      mapRef.current = null;
+      setMapLoaded(false);
+    };
+  }, [bounds]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !bounds) {
+      return;
+    }
+    const regionBounds: LngLatBoundsLike = [[bounds.west, bounds.south], [bounds.east, bounds.north]];
+    map.fitBounds(regionBounds, { padding: 32, duration: 0 });
+  }, [bounds]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !shift || !mapLoaded) {
+      return;
+    }
+
+    const points: MapFeature[] = [
+      ...shift.config.stations.map((station) => ({
+        type: "Feature" as const,
+        properties: { kind: "station", label: station.id.replace("station_", "S") },
+        geometry: { type: "Point" as const, coordinates: [station.coordinates.lon, station.coordinates.lat] }
+      })),
+      ...shift.config.hospitals.map((hospital) => ({
+        type: "Feature" as const,
+        properties: { kind: "hospital", label: hospital.id },
+        geometry: { type: "Point" as const, coordinates: [hospital.coordinates.lon, hospital.coordinates.lat] }
+      })),
+      ...shift.incidents.filter((incidentItem) => incidentItem.reportedAt !== undefined).map((incidentItem) => ({
+        type: "Feature" as const,
+        properties: {
+          kind: "incident",
+          label: incidentItem.id === activeIncidentId ? "Active" : incidentItem.displayName
+        },
+        geometry: { type: "Point" as const, coordinates: [incidentItem.location.lon, incidentItem.location.lat] }
+      })),
+      ...Object.values(shift.units).map((unit) => ({
+        type: "Feature" as const,
+        properties: { kind: "unit", label: unit.callSign },
+        geometry: { type: "Point" as const, coordinates: [unit.location.lon, unit.location.lat] }
+      }))
+    ];
+
+    const routes: MapFeature[] = Object.values(shift.units)
+      .filter((unit) => unit.route && unit.status === "en_route")
+      .map((unit) => ({
+        type: "Feature" as const,
+        properties: { active: unit.incidentId === activeIncidentId, unitId: unit.id },
+        geometry: {
+          type: "LineString" as const,
+          coordinates: unit.route!.geometry.map((point) => [point.lon, point.lat])
+        }
+      }));
+
+    setSourceData(map, "points", { type: "FeatureCollection", features: points });
+    setSourceData(map, "routes", { type: "FeatureCollection", features: routes });
+  }, [activeIncidentId, mapLoaded, shift]);
+
+  return <div ref={containerRef} className="map-canvas" />;
 }
 
 function App() {
@@ -203,11 +395,11 @@ function App() {
                   onLink={() => undefined}
                   onSplit={() => undefined}
                 />
-                {incident.duplicateReports.map((report) => (
+                {(incident.duplicateReports ?? []).map((report) => (
                   <ReportRow
                     key={report.id}
                     report={report}
-                    linked={incident.linkedReportIds.includes(report.id)}
+                    linked={(incident.linkedReportIds ?? []).includes(report.id)}
                     split={Boolean(shift?.incidents.some((item) => item.splitFromReportId === report.id))}
                     onLink={() => run(() => post("/api/shift/link-report", { incidentId: incident.id, reportId: report.id }))}
                     onSplit={() => run(() => post("/api/shift/split-report", { incidentId: incident.id, reportId: report.id }))}
@@ -222,22 +414,7 @@ function App() {
 
         <div className="panel map">
           <h2>Spatial View</h2>
-          <div className="map-plane">
-            {units.map((unit) => (
-              <div
-                key={unit.id}
-                className={`map-unit ${unit.status}`}
-                style={{
-                  left: `${20 + ((unit.location.lon * 1000) % 60)}%`,
-                  top: `${20 + ((unit.location.lat * 1000) % 60)}%`
-                }}
-                title={`${unit.callSign}: ${unit.status}`}
-              >
-                {unit.callSign}
-              </div>
-            ))}
-            {incident ? <div className="map-incident">INC</div> : null}
-          </div>
+          <MapView shift={shift} activeIncidentId={incident?.id} />
         </div>
 
         <div className="panel units">

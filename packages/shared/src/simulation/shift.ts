@@ -8,8 +8,9 @@ import {
   type ResourceType
 } from "../config/index.js";
 import { suggestDispatch } from "../dispatch/suggest.js";
-import { distanceMeters, type Coordinates } from "./geometry.js";
+import { pointAlongRoute, type Coordinates } from "./geometry.js";
 import { createRandomStream } from "./random.js";
+import { createDefaultRoutingService, type RouteResult } from "./routing.js";
 import type {
   CapabilityCheck,
   DebriefIncident,
@@ -24,6 +25,8 @@ import type {
 } from "./types.js";
 
 const averageResponseSpeedMetersPerSecond = 13.9;
+const locationUpdateIntervalSeconds = 15;
+const routingService = createDefaultRoutingService(averageResponseSpeedMetersPerSecond);
 
 function cloneState(state: ShiftState): ShiftState {
   return {
@@ -35,7 +38,10 @@ function cloneState(state: ShiftState): ShiftState {
       linkedReportIds: [...incident.linkedReportIds],
       duplicateReports: incident.duplicateReports.map((report) => ({ ...report }))
     })),
-    units: Object.fromEntries(Object.entries(state.units).map(([id, unit]) => [id, { ...unit }])),
+    units: Object.fromEntries(Object.entries(state.units).map(([id, unit]) => [id, {
+      ...unit,
+      route: unit.route ? { ...unit.route, geometry: unit.route.geometry.map((point) => ({ ...point })) } : undefined
+    }])),
     timeline: state.timeline.map((event) => ({ ...event, unitIds: event.unitIds ? [...event.unitIds] : undefined }))
   };
 }
@@ -226,14 +232,47 @@ function releaseUnit(state: ShiftState, unit: UnitSimulationState, at = state.cl
   unit.status = "available_mobile";
   unit.incidentId = undefined;
   unit.destination = undefined;
+  unit.route = undefined;
+  unit.routeStartedAt = undefined;
   unit.arrivalAt = undefined;
   unit.availableAt = undefined;
+  unit.locationUpdatedAt = at;
   addEvent(state, {
     at,
     type: "unit_available",
     unitIds: [unit.id],
     message: `${unit.callSign} available`
   });
+}
+
+function updateUnitRouteLocation(unit: UnitSimulationState, at: number): void {
+  if (unit.status !== "en_route" || !unit.route || unit.routeStartedAt === undefined || unit.arrivalAt === undefined) {
+    return;
+  }
+
+  if (at <= unit.routeStartedAt) {
+    unit.location = unit.route.geometry[0]!;
+    unit.locationUpdatedAt = at;
+    return;
+  }
+
+  if (at >= unit.arrivalAt) {
+    unit.location = unit.route.geometry.at(-1)!;
+    unit.locationUpdatedAt = unit.arrivalAt;
+    return;
+  }
+
+  const travelDuration = unit.arrivalAt - unit.routeStartedAt;
+  const sampledAt = unit.routeStartedAt +
+    (Math.floor((at - unit.routeStartedAt) / locationUpdateIntervalSeconds) * locationUpdateIntervalSeconds);
+  unit.location = pointAlongRoute(unit.route.geometry, (sampledAt - unit.routeStartedAt) / travelDuration);
+  unit.locationUpdatedAt = sampledAt;
+}
+
+function updateEnRouteLocations(state: ShiftState): void {
+  for (const unit of Object.values(state.units)) {
+    updateUnitRouteLocation(unit, state.clock.now);
+  }
 }
 
 function removeAssignedUnit(incident: IncidentSimulationState | undefined, unitId: string): void {
@@ -357,6 +396,8 @@ function evaluateIncident(state: ShiftState, incident: IncidentSimulationState):
 }
 
 function processDueEvents(state: ShiftState): void {
+  updateEnRouteLocations(state);
+
   for (const incident of state.incidents) {
     if (incident.reportedAt === undefined && state.clock.now >= incident.reportDueAt) {
       incident.reportedAt = incident.reportDueAt;
@@ -388,6 +429,7 @@ function processDueEvents(state: ShiftState): void {
     if (unit.status === "en_route" && unit.arrivalAt !== undefined && state.clock.now >= unit.arrivalAt) {
       unit.status = "on_scene";
       unit.location = unit.destination ?? unit.location;
+      unit.locationUpdatedAt = unit.arrivalAt;
       const incident = state.incidents.find((candidate) => candidate.id === unit.incidentId);
       addEvent(state, {
         at: unit.arrivalAt,
@@ -482,7 +524,13 @@ export function classifyIncident(state: ShiftState, incidentId: string, code: st
   return next;
 }
 
-function travelSeconds(state: ShiftState, unit: UnitSimulationState, incident: IncidentSimulationState): number {
+interface TravelPlan {
+  turnoutSeconds: number;
+  route: RouteResult;
+  totalSeconds: number;
+}
+
+function travelPlan(state: ShiftState, unit: UnitSimulationState, incident: IncidentSimulationState): TravelPlan {
   const resource = state.config.resources.find((candidate) => candidate.id === unit.id);
   if (!resource) {
     throw new Error(`Unknown resource ${unit.id}`);
@@ -493,11 +541,18 @@ function travelSeconds(state: ShiftState, unit: UnitSimulationState, incident: I
   const turnoutRange = resource.overrides.turnout?.delaySeconds ?? resourceType.turnout.delaySeconds;
   const turnoutRandom = createRandomStream(`${state.seed}:${unit.id}:${incident.id}:turnout`);
   const turnout = rangeValue(turnoutRange, turnoutRandom) * (resourceType.turnout.priorityModifiers[priority] ?? 1);
-  const travel = distanceMeters(unit.location, incident.location) /
-    averageResponseSpeedMetersPerSecond *
-    resourceType.travel.timeMultiplier *
-    (priorityConfig?.travelTimeMultiplier ?? 1);
-  return Math.ceil(turnout + travel);
+  const baseRoute = routingService.route(unit.location, incident.location);
+  const route = {
+    ...baseRoute,
+    durationSeconds: Math.ceil(baseRoute.durationSeconds *
+      resourceType.travel.timeMultiplier *
+      (priorityConfig?.travelTimeMultiplier ?? 1))
+  };
+  return {
+    turnoutSeconds: turnout,
+    route,
+    totalSeconds: Math.ceil(turnout + route.durationSeconds)
+  };
 }
 
 export function dispatchUnits(state: ShiftState, command: DispatchCommand): ShiftState {
@@ -520,12 +575,15 @@ export function dispatchUnits(state: ShiftState, command: DispatchCommand): Shif
       continue;
     }
 
-    const seconds = travelSeconds(next, unit, incident);
+    const plan = travelPlan(next, unit, incident);
     unit.status = "en_route";
     unit.incidentId = incident.id;
     unit.destination = incident.location;
+    unit.route = plan.route;
     unit.dispatchedAt = next.clock.now;
-    unit.arrivalAt = next.clock.now + seconds;
+    unit.routeStartedAt = next.clock.now + plan.turnoutSeconds;
+    unit.arrivalAt = next.clock.now + plan.totalSeconds;
+    unit.locationUpdatedAt = next.clock.now;
     incident.assignedUnitIds.push(unit.id);
     dispatched.push(unit.id);
   }
@@ -601,8 +659,11 @@ export function recallUnits(state: ShiftState, unitIds: string[]): ShiftState {
     unit.status = "available_mobile";
     unit.incidentId = undefined;
     unit.destination = undefined;
+    unit.route = undefined;
+    unit.routeStartedAt = undefined;
     unit.arrivalAt = undefined;
     unit.availableAt = undefined;
+    unit.locationUpdatedAt = next.clock.now;
     recalled.push(unit.id);
   }
 
