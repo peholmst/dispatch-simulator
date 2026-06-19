@@ -1,0 +1,17 @@
+{
+  "name": "dispatch-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.4",
+  "type": "module",
+  "scripts": {
+    "build": "tsc -p packages/shared/tsconfig.json && tsc -p apps/server/tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "test": "vitest run --root packages/shared && vitest run --passWithNoTests --root apps/server && vitest run --passWithNoTests --root apps/web",
+    "validate:config": "packages\\shared\\node_modules\\.bin\\tsx.CMD packages/shared/src/cli/validate-config.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1"
+  }
+}

@@ -1,0 +1,120 @@
+- id: incident_commander
+  service: fire_rescue
+  capabilities:
+    command: 1
+    first_response: 1
+  crew:
+    min: 1
+    default: 1
+    max: 2
+  turnout:
+    delaySeconds: [30, 90]
+    priorityModifiers:
+      A: 0.7
+      B: 0.85
+      C: 1
+      D: 1.2
+  travel:
+    timeMultiplier: 1
+  recovery:
+    afterIncidentSeconds: [120, 300]
+- id: pumper
+  service: fire_rescue
+  capabilities:
+    fire_suppression: 10
+    smoke_divers: 3
+    first_response: 1
+  crew:
+    min: 3
+    default: 4
+    max: 5
+  turnout:
+    delaySeconds: [45, 120]
+    priorityModifiers:
+      A: 0.7
+      B: 0.85
+      C: 1
+      D: 1.2
+  travel:
+    timeMultiplier: 1
+  recovery:
+    afterIncidentSeconds: [300, 900]
+- id: tanker
+  service: fire_rescue
+  capabilities:
+    water_supply: 1
+    fire_suppression: 10
+  crew:
+    min: 2
+    default: 2
+    max: 3
+  turnout:
+    delaySeconds: [60, 150]
+    priorityModifiers:
+      A: 0.75
+      B: 0.9
+      C: 1
+      D: 1.2
+  travel:
+    timeMultiplier: 1.15
+  recovery:
+    afterIncidentSeconds: [300, 900]
+- id: aerial_platform
+  service: fire_rescue
+  capabilities:
+    aerial: 1
+    fire_suppression: 5
+  crew:
+    min: 2
+    default: 2
+    max: 3
+  turnout:
+    delaySeconds: [60, 150]
+    priorityModifiers:
+      A: 0.75
+      B: 0.9
+      C: 1
+      D: 1.2
+  travel:
+    timeMultiplier: 1.2
+  recovery:
+    afterIncidentSeconds: [300, 900]
+- id: basic_ambulance
+  service: ems
+  capabilities:
+    ems: 1
+  crew:
+    min: 2
+    default: 2
+    max: 2
+  turnout:
+    delaySeconds: [30, 90]
+    priorityModifiers:
+      A: 0.7
+      B: 0.85
+      C: 1
+      D: 1.2
+  travel:
+    timeMultiplier: 1
+  recovery:
+    afterIncidentSeconds: [300, 900]
+- id: advanced_ambulance
+  service: ems
+  capabilities:
+    ems: 1
+    ems_advanced: 1
+  crew:
+    min: 2
+    default: 2
+    max: 2
+  turnout:
+    delaySeconds: [30, 90]
+    priorityModifiers:
+      A: 0.7
+      B: 0.85
+      C: 1
+      D: 1.2
+  travel:
+    timeMultiplier: 1
+  recovery:
+    afterIncidentSeconds: [300, 900]

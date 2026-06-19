@@ -1,0 +1,18 @@
+- id: station_10
+  localizationKey: station.station_10
+  address: Satakunnankatu 16, Tampere
+  coordinates:
+    lat: 61.4991
+    lon: 23.7604
+- id: station_11
+  localizationKey: station.station_11
+  address: Hatanpaan valtatie 30, Tampere
+  coordinates:
+    lat: 61.4862
+    lon: 23.7689
+- id: station_12
+  localizationKey: station.station_12
+  address: Hervannan valtavayla 30, Tampere
+  coordinates:
+    lat: 61.4505
+    lon: 23.8502

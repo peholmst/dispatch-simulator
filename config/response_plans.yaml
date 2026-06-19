@@ -1,0 +1,51 @@
+- code: "103"
+  priority: B
+  requires:
+    fire_suppression: 10
+- code: "103"
+  priority: C
+  requires:
+    fire_suppression: 10
+- code: "401"
+  priority: B
+  requires:
+    fire_suppression: 10
+    smoke_divers: 3
+- code: "401"
+  priority: C
+  requires:
+    fire_suppression: 10
+- code: "402"
+  priority: A
+  requires:
+    command: 1
+    fire_suppression: 30
+    smoke_divers: 6
+    aerial: 1
+    water_supply: 1
+    ems: 1
+  desires:
+    ems_advanced: 1
+- code: "402"
+  priority: B
+  requires:
+    command: 1
+    fire_suppression: 30
+    smoke_divers: 6
+    aerial: 1
+    water_supply: 1
+- code: "704"
+  priority: A
+  requires:
+    ems: 1
+    first_response: 1
+  desires:
+    ems_advanced: 1
+- code: "704"
+  priority: B
+  requires:
+    ems: 1
+- code: "704"
+  priority: C
+  requires:
+    ems: 1

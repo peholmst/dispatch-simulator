@@ -1,0 +1,38 @@
+- id: building_fire
+  incidentWeight: 3
+  timeToControl:
+    fullCreditSeconds: 600
+    zeroCreditSeconds: 1800
+  overDispatch:
+    freeSurplusRatio: 0.25
+    zeroCreditSurplusRatio: 2
+  emsTransport:
+    fullCreditSeconds: 1800
+    zeroCreditSeconds: 3600
+  dimensions:
+    classification: 20
+    priority: 10
+    dispatchAdequacy: 25
+    timeToControl: 20
+    escalationPrevention: 15
+    emsTransport: 5
+    overDispatch: 5
+- id: medical
+  incidentWeight: 2
+  timeToControl:
+    fullCreditSeconds: 480
+    zeroCreditSeconds: 1800
+  overDispatch:
+    freeSurplusRatio: 0.25
+    zeroCreditSurplusRatio: 2
+  emsTransport:
+    fullCreditSeconds: 1800
+    zeroCreditSeconds: 3600
+  dimensions:
+    classification: 20
+    priority: 15
+    dispatchAdequacy: 20
+    timeToControl: 15
+    escalationPrevention: 5
+    emsTransport: 20
+    overDispatch: 5

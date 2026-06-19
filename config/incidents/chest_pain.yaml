@@ -1,0 +1,72 @@
+id: chest_pain
+schemaVersion: 1
+localizationPrefix: incident.chest_pain
+displayNameKey: .name
+initialReportDelaySeconds: [0, 60]
+spawn:
+  locationTypes:
+    - residential_building
+    - public_venue
+  weight: 8
+reports:
+  initial:
+    - key: .reports.initial.caller_reports_chest_pain
+      weight: 3
+    - key: .reports.initial.shortness_of_breath
+      weight: 1
+  duplicate: []
+classification:
+  acceptableCodes:
+    - "704"
+  idealCodes:
+    - "704"
+  acceptablePriorities:
+    - A
+    - B
+    - C
+  idealPriorities:
+    - B
+stages:
+  - id: stable
+    startsAt: 0
+    controlRequires:
+      ems: 1
+    controlDesires:
+      ems_advanced: 1
+    containmentRequires: {}
+    containmentDesires: {}
+    firstArrivalReportKey: .reports.windshield.stable
+    emsTransport:
+      mode: possible
+      probability: 0.6
+      requiresCapability: ems
+      destinationType: hospital
+      handoffSeconds: [600, 1200]
+  - id: deteriorating
+    startsAt: 600
+    transition:
+      probability: 0.4
+    controlRequires:
+      ems: 1
+    controlDesires:
+      ems_advanced: 1
+      first_response: 1
+    containmentRequires: {}
+    containmentDesires: {}
+    firstArrivalReportKey: .reports.windshield.deteriorating
+    escalationReportKey: .reports.escalated.deteriorating
+    emsTransport:
+      mode: required
+      requiresCapability: ems
+      destinationType: hospital
+      handoffSeconds: [600, 1200]
+commitment:
+  afterControlSeconds: [300, 600]
+emsTransport:
+  mode: possible
+  probability: 0.6
+  requiresCapability: ems
+  destinationType: hospital
+  handoffSeconds: [600, 1200]
+scoring:
+  outcomeProfile: medical

@@ -1,0 +1,16 @@
+- id: command
+  localizationKey: capability.command
+- id: fire_suppression
+  localizationKey: capability.fire_suppression
+- id: smoke_divers
+  localizationKey: capability.smoke_divers
+- id: aerial
+  localizationKey: capability.aerial
+- id: water_supply
+  localizationKey: capability.water_supply
+- id: first_response
+  localizationKey: capability.first_response
+- id: ems
+  localizationKey: capability.ems
+- id: ems_advanced
+  localizationKey: capability.ems_advanced

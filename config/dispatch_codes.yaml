@@ -1,0 +1,21 @@
+- id: "103"
+  localizationKey: dispatch_code.103
+  validPriorities:
+    - B
+    - C
+- id: "401"
+  localizationKey: dispatch_code.401
+  validPriorities:
+    - B
+    - C
+- id: "402"
+  localizationKey: dispatch_code.402
+  validPriorities:
+    - A
+    - B
+- id: "704"
+  localizationKey: dispatch_code.704
+  validPriorities:
+    - A
+    - B
+    - C

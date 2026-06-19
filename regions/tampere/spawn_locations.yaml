@@ -1,0 +1,21 @@
+- id: kaleva_apartment_1
+  locationType: residential_building
+  coordinates:
+    lat: 61.5008
+    lon: 23.7998
+  regionTags:
+    - urban
+- id: hervanta_apartment_1
+  locationType: residential_building
+  coordinates:
+    lat: 61.4498
+    lon: 23.8525
+  regionTags:
+    - urban
+- id: central_square_venue
+  locationType: public_venue
+  coordinates:
+    lat: 61.4982
+    lon: 23.7608
+  regionTags:
+    - urban

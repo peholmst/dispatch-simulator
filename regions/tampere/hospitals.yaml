@@ -1,0 +1,7 @@
+- id: tays_acuta
+  localizationKey: hospital.tays_acuta
+  address: Ensitie 8, Tampere
+  coordinates:
+    lat: 61.5067
+    lon: 23.8192
+  handoffSeconds: [600, 1200]

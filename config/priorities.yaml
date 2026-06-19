@@ -1,0 +1,12 @@
+- id: A
+  localizationKey: priority.A
+  travelTimeMultiplier: 0.75
+- id: B
+  localizationKey: priority.B
+  travelTimeMultiplier: 0.85
+- id: C
+  localizationKey: priority.C
+  travelTimeMultiplier: 1
+- id: D
+  localizationKey: priority.D
+  travelTimeMultiplier: 1.05

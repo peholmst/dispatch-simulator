@@ -1,0 +1,39 @@
+capability.command: Command
+capability.fire_suppression: Fire suppression
+capability.smoke_divers: Smoke divers
+capability.aerial: Aerial platform
+capability.water_supply: Water supply
+capability.first_response: First response
+capability.ems: EMS
+capability.ems_advanced: Advanced EMS
+
+priority.A: A priority
+priority.B: B priority
+priority.C: C priority
+priority.D: D priority
+
+dispatch_code.103: Automatic fire alarm
+dispatch_code.401: Small building fire
+dispatch_code.402: Medium building fire
+dispatch_code.704: Chest pain / medical emergency
+
+region.tampere: Tampere
+station.station_10: Station 10
+station.station_11: Station 11
+station.station_12: Station 12
+hospital.tays_acuta: TAYS Acuta
+
+incident.apartment_fire.name: Apartment fire
+incident.apartment_fire.reports.initial.smoke_in_stairwell: Caller reports smoke in an apartment stairwell. People may still be inside.
+incident.apartment_fire.reports.initial.alarm_and_smoke: Automatic fire alarm is sounding and a caller reports smell of smoke.
+incident.apartment_fire.reports.duplicate.flames_visible: Second caller reports flames visible from an upper-floor window.
+incident.apartment_fire.reports.windshield.smoke_showing: First unit on scene reports smoke showing from the stairwell and residents evacuating.
+incident.apartment_fire.reports.windshield.room_fire: First unit on scene reports a working room fire with smoke spreading in the stairwell.
+incident.apartment_fire.reports.escalated.room_fire: Fire has extended from the room of origin. Additional units requested.
+
+incident.chest_pain.name: Chest pain
+incident.chest_pain.reports.initial.caller_reports_chest_pain: Caller reports central chest pain and nausea.
+incident.chest_pain.reports.initial.shortness_of_breath: Caller is short of breath and reports pressure in the chest.
+incident.chest_pain.reports.windshield.stable: Ambulance on scene reports patient conscious and stable, preparing assessment.
+incident.chest_pain.reports.windshield.deteriorating: Ambulance on scene reports patient condition deteriorating and requests advanced support.
+incident.chest_pain.reports.escalated.deteriorating: Patient condition has worsened; rapid transport is needed.

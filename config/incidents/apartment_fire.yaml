@@ -1,0 +1,75 @@
+id: apartment_fire
+schemaVersion: 1
+localizationPrefix: incident.apartment_fire
+displayNameKey: .name
+initialReportDelaySeconds: [0, 180]
+spawn:
+  locationTypes:
+    - residential_building
+  weight: 10
+reports:
+  initial:
+    - key: .reports.initial.smoke_in_stairwell
+      weight: 3
+    - key: .reports.initial.alarm_and_smoke
+      weight: 1
+  duplicate:
+    - key: .reports.duplicate.flames_visible
+      delaySeconds: [120, 360]
+      weight: 2
+classification:
+  acceptableCodes:
+    - "401"
+    - "402"
+  idealCodes:
+    - "401"
+  acceptablePriorities:
+    - A
+    - B
+  idealPriorities:
+    - B
+stages:
+  - id: smoke_showing
+    startsAt: 0
+    controlRequires:
+      fire_suppression: 10
+      smoke_divers: 3
+    controlDesires:
+      command: 1
+    containmentRequires:
+      fire_suppression: 10
+    containmentDesires: {}
+    firstArrivalReportKey: .reports.windshield.smoke_showing
+    commitment:
+      afterControlSeconds: [300, 600]
+  - id: room_fire
+    startsAt: 300
+    transition:
+      probability: 0.7
+    controlRequires:
+      command: 1
+      fire_suppression: 30
+      smoke_divers: 6
+      aerial: 1
+      water_supply: 1
+    controlDesires:
+      ems: 1
+    containmentRequires:
+      fire_suppression: 20
+      smoke_divers: 3
+    containmentDesires:
+      command: 1
+    firstArrivalReportKey: .reports.windshield.room_fire
+    escalationReportKey: .reports.escalated.room_fire
+    emsTransport:
+      mode: possible
+      probability: 0.2
+      requiresCapability: ems
+      destinationType: hospital
+      handoffSeconds: [600, 1200]
+commitment:
+  afterControlSeconds: [600, 1200]
+emsTransport:
+  mode: none
+scoring:
+  outcomeProfile: building_fire

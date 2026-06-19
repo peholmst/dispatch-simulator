@@ -4,6 +4,38 @@
 
 This document turns the design into executable delivery slices. It should evolve as decisions become implementation tasks.
 
+## Current Status
+
+Completed:
+
+- TypeScript workspace scaffold with `apps/web`, `apps/server`, and `packages/shared`.
+- Root install/verification documentation in `README.md`.
+- Shared config schemas using Zod.
+- YAML config loader for global config, Tampere region data, and English localization.
+- Config validation command.
+- Tiny Tampere-ish sample data:
+  - 3 stations.
+  - 8 resources.
+  - 2 incident profiles: `apartment_fire` and `chest_pain`.
+  - Dispatch codes, priorities, response plans, scoring profiles, one hospital, spawn locations, and localization strings.
+- Assisted dispatch suggestion algorithm:
+  - Uses player-selected code and priority.
+  - Satisfies required capabilities first.
+  - Satisfies desired capabilities second.
+  - Uses beeline distance and closest-useful greedy selection.
+  - Reports required shortages and desired shortages separately.
+- Tests for config loading/validation and assisted dispatch suggestions.
+- Verified commands:
+  - `npm run validate:config`
+  - `npm test`
+  - `npm run build`
+
+Current implementation focus:
+
+- Build the deterministic simulation core with TDD.
+- Start with public interfaces for shift start, incident generation, report delivery, classification, and dispatch commands.
+- Keep routing mocked or straight-line until the map/routing milestone.
+
 ## Milestone 0: Thin Playable Vertical Slice
 
 Goal: prove the core game loop before full GIS/routing/content work.
@@ -19,19 +51,14 @@ Acceptance criteria:
 - User can finish the shift.
 - Debrief reveals hidden truth and key timing/outcome details.
 
-Likely tasks:
+Completed groundwork:
 
 - Set up TypeScript workspace.
 - Use a small monorepo with `apps/web`, `apps/server`, and `packages/shared`.
 - Use pnpm workspaces without Turborepo/Nx initially.
-- Add Vite React frontend.
-- Add Fastify Node.js backend.
 - Add shared domain package or shared types folder.
-- Add lint/test/build scripts.
+- Add test/build scripts.
 - Use Vitest first for domain/config/simulation tests.
-- Add Playwright end-to-end tests once the UI can run a shift.
-- Add basic WebSocket connection.
-- Add simple map or placeholder spatial view.
 - Add tiny Tampere-ish test data with 3 stations, 8 units, 2 incident profiles, dispatch codes, priorities, response plans, scoring profiles, one hospital, and localization strings.
 - Use `apartment_fire` and `chest_pain` as the first two incident profiles.
 - Vertical-slice resources:
@@ -91,6 +118,25 @@ Likely tasks:
   - `704-C`:
     - requires: `ems: 1`
 - A typical medium structural fire response should be representable as 1 commander, 3 pumpers, 1 aerial platform, and 1 tanker.
+
+Remaining Milestone 0 tasks:
+
+- Implement deterministic simulation core.
+- Add seeded random streams.
+- Add simulation clock, pause, and speed controls.
+- Generate incidents from validated profiles and spawn locations.
+- Generate and deliver initial reports.
+- Allow player classification by dispatch code and priority.
+- Allow assisted and manual dispatch commands.
+- Move units with mocked routing, straight-line movement, or fixed travel times.
+- Handle unit arrival and first-arrival windshield reports.
+- Resolve control, containment, escalation, commitment, EMS transport, and recovery.
+- Implement event timeline.
+- Add Fastify Node.js backend.
+- Add basic WebSocket connection.
+- Add Vite React frontend.
+- Add simple map or placeholder spatial view.
+- Add Playwright end-to-end tests once the UI can run a shift.
 - Use mocked routing, straight-line movement, or fixed travel times.
 - Support report, classification, priority, assisted/manual dispatch, unit travel, arrival, control, containment, escalation, and debrief.
 
@@ -98,7 +144,9 @@ Likely tasks:
 
 Goal: turn the vertical-slice sample data into validated YAML region/config data.
 
-Likely tasks:
+Status: mostly complete for the first vertical slice. Keep this milestone open for validation hardening as simulation and UI needs reveal gaps.
+
+Completed:
 
 - Define YAML schemas for capabilities, priorities, dispatch codes, stations, resources, hospitals, response plans, and incident profiles.
 - Implement config loader behind a data-access boundary.
@@ -106,9 +154,21 @@ Likely tasks:
 - Implement validation command.
 - Create tiny sample Tampere test data.
 
+Likely follow-up tasks:
+
+- Add validation for additional playability rules found during simulation implementation.
+- Add more targeted validation tests when new config fields are introduced.
+- Decide whether to add linting/formatting scripts.
+
 ## Milestone 2: Simulation Core
 
 Goal: run a deterministic shift without full map/routing polish.
+
+Recommended next implementation slice:
+
+- Use TDD for future game features.
+- First public interface should support starting a shift with a seed and loaded config.
+- First behavior to test: starting a shift produces an initial state with available units and a deterministic incident queue/report timeline.
 
 Likely tasks:
 
@@ -176,4 +236,4 @@ Likely tasks:
 
 ## Open Implementation Planning Question
 
-The next high-risk design branches are parked in [Future Grilling Agenda](future-grilling-agenda.md).
+No high-risk design branch is currently blocking implementation. The resolved grilling notes are parked in [Future Grilling Agenda](future-grilling-agenda.md).

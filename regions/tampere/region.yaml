@@ -1,0 +1,7 @@
+id: tampere
+localizationKey: region.tampere
+bounds:
+  north: 61.57
+  south: 61.43
+  east: 23.95
+  west: 23.55
