@@ -32,7 +32,65 @@ Likely tasks:
 - Add Playwright end-to-end tests once the UI can run a shift.
 - Add basic WebSocket connection.
 - Add simple map or placeholder spatial view.
-- Add tiny Tampere-ish test data with 2 stations, 4 units, 2 incident profiles, dispatch codes, priorities, and response plans.
+- Add tiny Tampere-ish test data with 3 stations, 8 units, 2 incident profiles, dispatch codes, priorities, response plans, scoring profiles, one hospital, and localization strings.
+- Use `apartment_fire` and `chest_pain` as the first two incident profiles.
+- Vertical-slice resources:
+  - `RPI31`: incident commander.
+  - `RPI101`: pumper.
+  - `RPI103`: tanker.
+  - `RPI106`: aerial platform.
+  - `RPI111`: pumper from station 11.
+  - `RPI121`: pumper from station 12.
+  - `EPI131`: basic ambulance.
+  - `EPI121`: advanced ambulance.
+- Initial vertical-slice resource capabilities:
+  - `RPI31`: `command: 1`, `first_response: 1`.
+  - `RPI101`: `fire_suppression: 10`, `smoke_divers: 3`, `first_response: 1`.
+  - `RPI103`: `water_supply: 1`, `fire_suppression: 10`.
+  - `RPI106`: `aerial: 1`, `fire_suppression: 5`.
+  - `RPI111`: `fire_suppression: 10`, `smoke_divers: 3`, `first_response: 1`.
+  - `RPI121`: `fire_suppression: 10`, `smoke_divers: 3`, `first_response: 1`.
+  - `EPI131`: `ems: 1`.
+  - `EPI121`: `ems: 1`, `ems_advanced: 1`.
+- Vertical-slice stations:
+  - `station_10`: `RPI101`, `RPI103`, `RPI106`.
+  - `station_11`: `RPI111`, `RPI31`.
+  - `station_12`: `RPI121`, `EPI121`, `EPI131`.
+- Vertical-slice hospital: `tays_acuta`.
+- Vertical-slice dispatch codes:
+  - `103`: automatic fire alarm.
+  - `401`: small building fire.
+  - `402`: medium building fire.
+  - `704`: chest pain / medical emergency.
+- Vertical-slice valid code-priority pairs:
+  - `103-B`, `103-C`.
+  - `401-B`, `401-C`.
+  - `402-A`, `402-B`.
+  - `704-A`, `704-B`, `704-C`.
+  - No selected vertical-slice code supports priority `D`.
+- Vertical-slice priority catalog includes `A`, `B`, `C`, and `D`, but priority choices are filtered by selected dispatch code.
+- Vertical-slice response-plan capability requirements:
+  - `103-B`:
+    - requires: `fire_suppression: 10`
+  - `401-B`:
+    - requires: `fire_suppression: 10`, `smoke_divers: 3`
+  - `402-B`:
+    - requires: `command: 1`, `fire_suppression: 30`, `smoke_divers: 6`, `aerial: 1`, `water_supply: 1`
+  - `704-B`:
+    - requires: `ems: 1`
+  - `704-A`:
+    - requires: `ems: 1`, `first_response: 1`
+    - desires: `ems_advanced: 1`
+  - `103-C`:
+    - requires: `fire_suppression: 10`
+  - `401-C`:
+    - requires: `fire_suppression: 10`
+  - `402-A`:
+    - requires: `command: 1`, `fire_suppression: 30`, `smoke_divers: 6`, `aerial: 1`, `water_supply: 1`, `ems: 1`
+    - desires: `ems_advanced: 1`
+  - `704-C`:
+    - requires: `ems: 1`
+- A typical medium structural fire response should be representable as 1 commander, 3 pumpers, 1 aerial platform, and 1 tanker.
 - Use mocked routing, straight-line movement, or fixed travel times.
 - Support report, classification, priority, assisted/manual dispatch, unit travel, arrival, control, containment, escalation, and debrief.
 

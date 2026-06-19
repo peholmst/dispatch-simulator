@@ -50,11 +50,11 @@ If no unit is on scene when an escalation happens, the player does not automatic
 
 ## Control and Containment
 
-Each stage defines both `control_requires` and `containment_requires`.
+Each stage defines both `controlRequires` and `containmentRequires`.
 
-Full control requires meeting the current stage's `control_requires` capability counts. Once controlled, units remain committed for a configurable duration before clearing.
+Full control requires meeting the current stage's `controlRequires` capability counts. Once controlled, units remain committed for a configurable duration before clearing.
 
-Containment requires meeting the current stage's `containment_requires` capability counts. Containment prevents escalation to the next stage but does not resolve the incident. This models exposure protection and other cases where preventing spread is easier than fully attacking the original problem.
+Containment requires meeting the current stage's `containmentRequires` capability counts. Containment prevents escalation to the next stage but does not resolve the incident. This models exposure protection and other cases where preventing spread is easier than fully attacking the original problem.
 
 ## Capabilities
 
@@ -78,8 +78,15 @@ Initial unit statuses:
 - `en_route`
 - `on_scene`
 - `committed_on_scene`
-- `returning`
 - `out_of_service`
+
+There is no separate `returning` status in v1. A unit returning from a call is either `available_mobile` if it can be dispatched while moving, or `out_of_service` if it cannot be dispatched until recovery/restock completes.
+
+`available_mobile` always means the unit is dispatchable. The unit's current map location communicates that it is not at station.
+
+A unit can be assigned to at most one active incident at a time. This is a long-term domain invariant, not only a v1 simplification. If a higher-priority assignment takes a unit from an existing incident, the unit is removed from the previous assignment and added to the new one; units are never split across incidents.
+
+Future versions may let the player order available units to temporarily relocate to another station or standby point to patch coverage, then order them back to their home station when no longer needed. This is a player-directed coverage-management feature, not part of v1 assisted dispatch optimization.
 
 Units may have different capabilities, crew size, turnout delay, travel behavior, autonomous status-change probabilities, and post-incident recovery duration.
 

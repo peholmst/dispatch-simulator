@@ -37,17 +37,21 @@ Resource requests can be written naturally into windshield and escalation report
 
 Incident profiles should reference initial report template keys, duplicate report template keys, first-arrival windshield report keys per stage, escalation/stage-transition report keys, and debrief explanation keys if needed.
 
+Incident profiles may define a `localizationPrefix`. Localization keys beginning with `.` are relative to that prefix. Keys without the leading `.` are absolute and may point to shared or reusable text. For example, with `localizationPrefix: incident.apartment_fire`, `.name` resolves to `incident.apartment_fire.name`, while `report.shared.smoke_visible` stays absolute.
+
 Example shape:
 
 ```yaml
 id: apartment_fire
-display_name_key: incident.apartment_fire.name
-initial_report_template_keys:
-  - report.apartment_fire.smoke_in_stairwell
+localizationPrefix: incident.apartment_fire
+displayNameKey: .name
+initialReportKeys:
+  - .reports.initial.smoke_in_stairwell
+  - report.shared.smoke_visible
 stages:
   - id: smoke_showing
-    first_arrival_report_key: report.apartment_fire.windshield.smoke_showing
-    escalation_report_key: report.apartment_fire.escalated.flames_visible
+    firstArrivalReportKey: .reports.windshield.smoke_showing
+    escalationReportKey: .reports.escalated.flames_visible
 ```
 
 ## Active-Play Visibility
