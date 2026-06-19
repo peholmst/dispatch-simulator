@@ -46,16 +46,32 @@ Compile the TypeScript packages:
 corepack pnpm build
 ```
 
-Build output is written to package `dist/` folders, which are ignored by Git.
+Build output is written to package `dist/` folders, which are ignored by Git. The web package also produces a Vite production bundle.
+
+## Run The Vertical Slice
+
+Start the API server:
+
+```powershell
+pnpm dev:server
+```
+
+In another terminal, start the web app:
+
+```powershell
+pnpm dev:web
+```
+
+Then open `http://127.0.0.1:5173`. The Vite dev server proxies `/api` and `/api/ws` to the Fastify server on `http://127.0.0.1:3000`.
 
 ## Project Layout
 
 ```text
 apps/
-  server/      Backend placeholder for the future simulation API.
-  web/         Frontend placeholder for the future dispatch UI.
+  server/      Fastify API and WebSocket server for the playable slice.
+  web/         Vite React dispatch UI for the playable slice.
 packages/
-  shared/      Shared config schemas, loader, validation, and dispatch logic.
+  shared/      Shared config, dispatch, and deterministic simulation logic.
 config/        Global YAML config such as capabilities, priorities, response plans, and incidents.
 regions/       Region-specific YAML data.
 locales/       Localization files.
@@ -66,6 +82,7 @@ docs/          Design and implementation planning documents.
 
 - `packages/shared/src/config/` contains config schemas, loading, validation, and tests.
 - `packages/shared/src/dispatch/` contains the assisted dispatch suggestion algorithm and tests.
+- `packages/shared/src/simulation/` contains the deterministic shift simulation core and tests.
 - `config/incidents/` contains the first incident profiles: `apartment_fire` and `chest_pain`.
 - `regions/tampere/` contains the first sample region data.
 
@@ -75,4 +92,6 @@ docs/          Design and implementation planning documents.
 corepack pnpm validate:config
 corepack pnpm test
 corepack pnpm build
+pnpm dev:server
+pnpm dev:web
 ```

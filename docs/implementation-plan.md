@@ -24,21 +24,44 @@ Completed:
   - Satisfies desired capabilities second.
   - Uses beeline distance and closest-useful greedy selection.
   - Reports required shortages and desired shortages separately.
-- Tests for config loading/validation and assisted dispatch suggestions.
+- Tests for config loading/validation, assisted dispatch suggestions, and simulation core behavior.
+- Deterministic simulation core:
+  - Seeded random streams.
+  - Simulation clock, pause, and speed controls.
+  - Incident generation from validated profiles and spawn locations.
+  - Initial emergency report delivery.
+  - Player classification by dispatch code and priority.
+  - Assisted and manual dispatch commands.
+  - Straight-line mocked travel and unit arrivals.
+  - First-arrival windshield reports.
+  - Control, containment, escalation, commitment, EMS transport completion, and recovery handling.
+  - Event timeline and debrief generation.
+- Fastify API server with a basic WebSocket state stream.
+- Vite React frontend with shift controls, incident classification, assisted/manual dispatch, unit status, placeholder spatial view, timeline, and debrief.
+- API smoke verification of a full apartment-fire loop:
+  - start shift.
+  - receive report.
+  - classify `402-B`.
+  - assisted dispatch.
+  - advance to arrival/control.
+  - finish shift.
+  - debrief reveals hidden truth and key timings.
 - Verified commands:
-  - `npm run validate:config`
-  - `npm test`
-  - `npm run build`
+  - `pnpm validate:config`
+  - `pnpm test`
+  - `pnpm build`
+  - API smoke flow against local Fastify server.
 
 Current implementation focus:
 
-- Build the deterministic simulation core with TDD.
-- Start with public interfaces for shift start, incident generation, report delivery, classification, and dispatch commands.
+- Harden the playable vertical slice with browser-level tests and UX tuning.
 - Keep routing mocked or straight-line until the map/routing milestone.
 
 ## Milestone 0: Thin Playable Vertical Slice
 
 Goal: prove the core game loop before full GIS/routing/content work.
+
+Status: functionally complete for the first playable slice.
 
 Acceptance criteria:
 
@@ -119,26 +142,10 @@ Completed groundwork:
     - requires: `ems: 1`
 - A typical medium structural fire response should be representable as 1 commander, 3 pumpers, 1 aerial platform, and 1 tanker.
 
-Remaining Milestone 0 tasks:
+Remaining Milestone 0 hardening:
 
-- Implement deterministic simulation core.
-- Add seeded random streams.
-- Add simulation clock, pause, and speed controls.
-- Generate incidents from validated profiles and spawn locations.
-- Generate and deliver initial reports.
-- Allow player classification by dispatch code and priority.
-- Allow assisted and manual dispatch commands.
-- Move units with mocked routing, straight-line movement, or fixed travel times.
-- Handle unit arrival and first-arrival windshield reports.
-- Resolve control, containment, escalation, commitment, EMS transport, and recovery.
-- Implement event timeline.
-- Add Fastify Node.js backend.
-- Add basic WebSocket connection.
-- Add Vite React frontend.
-- Add simple map or placeholder spatial view.
-- Add Playwright end-to-end tests once the UI can run a shift.
-- Use mocked routing, straight-line movement, or fixed travel times.
-- Support report, classification, priority, assisted/manual dispatch, unit travel, arrival, control, containment, escalation, and debrief.
+- Add Playwright end-to-end tests for the browser flow. In-app browser automation was attempted during implementation, but the local browser runtime failed to attach due to a host sandbox `CreateProcessAsUserW failed: 5` error.
+- Improve UI polish after real browser testing.
 
 ## Milestone 1: Config and Validation
 

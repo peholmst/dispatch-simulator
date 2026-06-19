@@ -5,7 +5,9 @@
   "packageManager": "pnpm@9.15.4",
   "type": "module",
   "scripts": {
-    "build": "tsc -p packages/shared/tsconfig.json && tsc -p apps/server/tsconfig.json && tsc -p apps/web/tsconfig.json",
+    "build": "pnpm --filter @dispatch-simulator/shared build && pnpm --filter @dispatch-simulator/server build && pnpm --filter @dispatch-simulator/web build",
+    "dev:server": "pnpm --filter @dispatch-simulator/server dev",
+    "dev:web": "pnpm --filter @dispatch-simulator/web dev",
     "test": "vitest run --root packages/shared && vitest run --passWithNoTests --root apps/server && vitest run --passWithNoTests --root apps/web",
     "validate:config": "packages\\shared\\node_modules\\.bin\\tsx.CMD packages/shared/src/cli/validate-config.ts"
   },

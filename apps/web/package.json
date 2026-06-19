@@ -4,13 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "tsc -p tsconfig.json",
+    "build": "tsc -p tsconfig.json && vite build",
+    "dev": "vite --host 127.0.0.1",
+    "preview": "vite preview --host 127.0.0.1",
     "test": "vitest run --passWithNoTests"
   },
   "dependencies": {
-    "@dispatch-simulator/shared": "workspace:*"
+    "@dispatch-simulator/shared": "workspace:*",
+    "@vitejs/plugin-react": "^6.0.2",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "vite": "^8.0.16"
   },
   "devDependencies": {
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
     "typescript": "^5.5.4",
     "vitest": "^2.1.1"
   }
