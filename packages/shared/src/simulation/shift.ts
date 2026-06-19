@@ -28,7 +28,11 @@ function cloneState(state: ShiftState): ShiftState {
   return {
     ...state,
     clock: { ...state.clock },
-    incidents: state.incidents.map((incident) => ({ ...incident, assignedUnitIds: [...incident.assignedUnitIds] })),
+    incidents: state.incidents.map((incident) => ({
+      ...incident,
+      assignedUnitIds: [...incident.assignedUnitIds],
+      duplicateReports: incident.duplicateReports.map((report) => ({ ...report }))
+    })),
     units: Object.fromEntries(Object.entries(state.units).map(([id, unit]) => [id, { ...unit }])),
     timeline: state.timeline.map((event) => ({ ...event, unitIds: event.unitIds ? [...event.unitIds] : undefined }))
   };
@@ -63,8 +67,29 @@ function matchesSpawn(profile: IncidentProfile, location: LoadedConfig["spawnLoc
     exclude.every((tag) => !location.regionTags.includes(tag));
 }
 
-function createInitialIncident(config: LoadedConfig, options: StartShiftOptions): IncidentSimulationState {
-  const random = createRandomStream(`${options.seed}:incident`);
+function createDuplicateReports(
+  profile: IncidentProfile,
+  config: LoadedConfig,
+  reportDueAt: number,
+  random: ReturnType<typeof createRandomStream>
+): IncidentSimulationState["duplicateReports"] {
+  return profile.reports.duplicate
+    .filter((report) => report.delaySeconds)
+    .map((report, index) => ({
+      id: `duplicate_${index + 1}`,
+      dueAt: reportDueAt + rangeValue(report.delaySeconds!, random),
+      text: localized(config, resolveLocalizationKey(profile.localizationPrefix, report.key))
+    }))
+    .sort((a, b) => a.dueAt - b.dueAt || a.id.localeCompare(b.id));
+}
+
+function createIncident(
+  config: LoadedConfig,
+  options: StartShiftOptions,
+  incidentNumber: number,
+  createdAt: number
+): IncidentSimulationState {
+  const random = createRandomStream(`${options.seed}:incident:${incidentNumber}`);
   const profile = random.pickWeighted(config.incidents, (incident) => incident.spawn.weight);
   const spawnCandidates = config.spawnLocations.filter((location) => matchesSpawn(profile, location));
   const spawnLocation = random.pickWeighted(spawnCandidates, () => 1);
@@ -75,11 +100,10 @@ function createInitialIncident(config: LoadedConfig, options: StartShiftOptions)
   const stageTransport = initialStage.emsTransport ?? profile.emsTransport;
   const emsTransportRequired = stageTransport.mode === "required" ||
     (stageTransport.mode === "possible" && random.next() < stageTransport.probability);
-  const createdAt = options.startTimeSeconds ?? 0;
   const reportDueAt = createdAt + rangeValue(profile.initialReportDelaySeconds, random);
 
   return {
-    id: "incident_1",
+    id: `incident_${incidentNumber}`,
     profileId: profile.id,
     displayName: localized(config, resolveLocalizationKey(profile.localizationPrefix, profile.displayNameKey)),
     locationId: spawnLocation.id,
@@ -88,6 +112,7 @@ function createInitialIncident(config: LoadedConfig, options: StartShiftOptions)
     createdAt,
     reportDueAt,
     reportText: localized(config, resolveLocalizationKey(profile.localizationPrefix, report.key)),
+    duplicateReports: createDuplicateReports(profile, config, reportDueAt, random),
     stageId: initialStage.id,
     stageIndex: 0,
     willEscalate,
@@ -95,6 +120,16 @@ function createInitialIncident(config: LoadedConfig, options: StartShiftOptions)
     emsTransportRequired,
     assignedUnitIds: []
   };
+}
+
+function createIncidents(config: LoadedConfig, options: StartShiftOptions): IncidentSimulationState[] {
+  const startTime = options.startTimeSeconds ?? 0;
+  const incidentCount = options.incidentCount ?? 1;
+  const incidentSpacingSeconds = options.incidentSpacingSeconds ?? 900;
+
+  return Array.from({ length: incidentCount }, (_, index) => {
+    return createIncident(config, options, index + 1, startTime + (index * incidentSpacingSeconds));
+  });
 }
 
 function unitStartLocation(config: LoadedConfig, resource: Resource): Coordinates {
@@ -130,7 +165,7 @@ export function startShift(config: LoadedConfig, options: StartShiftOptions): Sh
     clock: { now, mode: "running", speed: 1 },
     status: "active",
     config,
-    incidents: [createInitialIncident(config, options)],
+    incidents: createIncidents(config, options),
     units: createUnits(config),
     timeline: []
   };
@@ -166,6 +201,10 @@ function hasRequirements(required: CapabilityMap, provided: CapabilityMap): bool
   return Object.keys(missingCapabilities(required, provided)).length === 0;
 }
 
+function hasAnyRequirement(required: CapabilityMap): boolean {
+  return Object.values(required).some((value) => value > 0);
+}
+
 function addCapabilities(total: CapabilityMap, capabilities: CapabilityMap): void {
   for (const [capability, value] of Object.entries(capabilities)) {
     total[capability] = (total[capability] ?? 0) + value;
@@ -178,6 +217,34 @@ function resourceTypeFor(config: LoadedConfig, resource: Resource): ResourceType
     throw new Error(`Resource ${resource.id} references missing type ${resource.type}`);
   }
   return resourceType;
+}
+
+function releaseUnit(state: ShiftState, unit: UnitSimulationState, at = state.clock.now): void {
+  unit.status = "available_mobile";
+  unit.incidentId = undefined;
+  unit.destination = undefined;
+  unit.arrivalAt = undefined;
+  unit.availableAt = undefined;
+  addEvent(state, {
+    at,
+    type: "unit_available",
+    unitIds: [unit.id],
+    message: `${unit.callSign} available`
+  });
+}
+
+function commitUnitAfterControl(state: ShiftState, incident: IncidentSimulationState, unit: UnitSimulationState): void {
+  if (incident.commitmentClearsAt === undefined) {
+    return;
+  }
+
+  if (incident.commitmentClearsAt <= state.clock.now) {
+    releaseUnit(state, unit);
+    return;
+  }
+
+  unit.status = "committed_on_scene";
+  unit.availableAt = incident.commitmentClearsAt;
 }
 
 export function getIncidentCapabilityCheck(state: ShiftState, incidentId: string): CapabilityCheck {
@@ -239,7 +306,11 @@ function evaluateIncident(state: ShiftState, incident: IncidentSimulationState):
 
   const stage = profile.stages[incident.stageIndex]!;
   const check = getIncidentCapabilityCheck(state, incident.id);
-  if (incident.containedAt === undefined && hasRequirements(stage.containmentRequires, check.provided)) {
+  if (
+    incident.containedAt === undefined &&
+    hasAnyRequirement(stage.containmentRequires) &&
+    hasRequirements(stage.containmentRequires, check.provided)
+  ) {
     incident.containedAt = state.clock.now;
     incident.status = "contained";
     addEvent(state, {
@@ -255,10 +326,10 @@ function evaluateIncident(state: ShiftState, incident: IncidentSimulationState):
     const commitmentRange = stage.commitment?.afterControlSeconds ?? profile.commitment.afterControlSeconds;
     const random = createRandomStream(`${state.seed}:${incident.id}:commitment`);
     const availableAt = state.clock.now + rangeValue(commitmentRange, random);
+    incident.commitmentClearsAt = availableAt;
     for (const unit of Object.values(state.units)) {
       if (unit.incidentId === incident.id && unit.status === "on_scene") {
-        unit.status = "committed_on_scene";
-        unit.availableAt = availableAt;
+        commitUnitAfterControl(state, incident, unit);
       }
     }
     addEvent(state, {
@@ -286,6 +357,18 @@ function processDueEvents(state: ShiftState): void {
         incidentId: incident.id,
         message: incident.reportText ?? `${incident.displayName} reported`
       });
+    }
+
+    for (const report of incident.duplicateReports) {
+      if (report.deliveredAt === undefined && state.clock.now >= report.dueAt) {
+        report.deliveredAt = report.dueAt;
+        addEvent(state, {
+          at: report.dueAt,
+          type: "duplicate_report_received",
+          incidentId: incident.id,
+          message: report.text
+        });
+      }
     }
 
     evaluateIncident(state, incident);
@@ -319,7 +402,11 @@ function processDueEvents(state: ShiftState): void {
       }
 
       if (incident) {
-        evaluateIncident(state, incident);
+        if (incident.controlledAt !== undefined) {
+          commitUnitAfterControl(state, incident, unit);
+        } else {
+          evaluateIncident(state, incident);
+        }
       }
     }
 
@@ -328,16 +415,7 @@ function processDueEvents(state: ShiftState): void {
       unit.availableAt !== undefined &&
       state.clock.now >= unit.availableAt
     ) {
-      unit.status = "available_mobile";
-      unit.incidentId = undefined;
-      unit.destination = undefined;
-      unit.arrivalAt = undefined;
-      unit.availableAt = undefined;
-      addEvent(state, {
-        type: "unit_available",
-        unitIds: [unit.id],
-        message: `${unit.callSign} available`
-      });
+      releaseUnit(state, unit, unit.availableAt);
     }
   }
 
@@ -506,6 +584,7 @@ export function createDebrief(state: ShiftState): ShiftDebrief {
       escalatedAt: incident.escalatedAt,
       emsTransportRequired: incident.emsTransportRequired,
       emsTransportCompletedAt: incident.emsTransportCompletedAt,
+      commitmentClearsAt: incident.commitmentClearsAt,
       assignedUnitIds: [...incident.assignedUnitIds]
     };
   });

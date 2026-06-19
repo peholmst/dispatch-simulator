@@ -20,6 +20,8 @@ The dispatcher receives report text generated from templates attached to hidden 
 
 Multiple reports can belong to the same hidden incident. The simulation knows the truth, but the player may need to link or split reports in the UI. Correct duplicate recognition can be scored.
 
+In the current deterministic core, each generated incident schedules one initial report and zero or more duplicate reports from the incident profile. Initial report delivery is based on `initialReportDelaySeconds`; duplicate report delivery is based on each duplicate report's delay after the initial report.
+
 ## Player Classification
 
 The player-selected incident code and priority affect scoring, queue urgency, response-plan selection, and travel behavior. They do not change hidden incident truth.
@@ -92,9 +94,20 @@ Units may have different capabilities, crew size, turnout delay, travel behavior
 
 Units may change status autonomously. They may go mobile on their own, temporarily go out of service, or take variable time to respond after dispatch.
 
+Current implemented unit lifecycle:
+
+1. Dispatchable units start as `available_at_station` or `available_mobile`.
+2. Dispatched units become `en_route`.
+3. On arrival, units become `on_scene` and the first arrival emits a windshield report.
+4. Once the incident is controlled, on-scene units become `committed_on_scene` until the deterministic commitment clear time.
+5. Units that arrive after control join the same commitment window instead of remaining stuck on scene.
+6. When the commitment window clears, units become `available_mobile`.
+
 ## Unit Movement
 
-Units follow actual roads using routing output. The authoritative backend publishes location updates at a configurable cadence, defaulting to roughly 10-15 simulated seconds. The frontend may animate smoothly between reported positions, but interpolation is a presentation layer choice and not part of the simulation truth.
+The current core uses mocked straight-line travel times. It computes beeline distance from the unit's current location to the incident, applies a fixed average response speed, then applies priority and resource travel multipliers plus deterministic turnout delay.
+
+Future map/routing work will replace this with actual roads using routing output. The authoritative backend should then publish location updates at a configurable cadence, defaulting to roughly 10-15 simulated seconds. The frontend may animate smoothly between reported positions, but interpolation is a presentation layer choice and not part of the simulation truth.
 
 Priority affects response mode through configurable travel modifiers. The model stays abstract and tunable rather than simulating emergency driving law in detail.
 

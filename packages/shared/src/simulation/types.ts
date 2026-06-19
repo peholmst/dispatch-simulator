@@ -17,6 +17,7 @@ export type IncidentStatus = "pending_report" | "reported" | "contained" | "cont
 export type TimelineEventType =
   | "shift_started"
   | "report_received"
+  | "duplicate_report_received"
   | "incident_classified"
   | "units_dispatched"
   | "unit_arrived"
@@ -49,6 +50,13 @@ export interface UnitSimulationState {
   availableAt?: number;
 }
 
+export interface ScheduledIncidentReport {
+  id: string;
+  dueAt: number;
+  text: string;
+  deliveredAt?: number;
+}
+
 export interface IncidentSimulationState {
   id: string;
   profileId: string;
@@ -60,6 +68,7 @@ export interface IncidentSimulationState {
   reportDueAt: number;
   reportedAt?: number;
   reportText?: string;
+  duplicateReports: ScheduledIncidentReport[];
   selectedCode?: string;
   selectedPriority?: string;
   stageId: string;
@@ -73,6 +82,7 @@ export interface IncidentSimulationState {
   controlledAt?: number;
   emsTransportRequired: boolean;
   emsTransportCompletedAt?: number;
+  commitmentClearsAt?: number;
   assignedUnitIds: string[];
 }
 
@@ -95,6 +105,8 @@ export interface ShiftState {
 export interface StartShiftOptions {
   seed: string;
   startTimeSeconds?: number;
+  incidentCount?: number;
+  incidentSpacingSeconds?: number;
 }
 
 export interface DispatchCommand {
@@ -117,6 +129,7 @@ export interface DebriefIncident {
   escalatedAt?: number;
   emsTransportRequired: boolean;
   emsTransportCompletedAt?: number;
+  commitmentClearsAt?: number;
   assignedUnitIds: string[];
 }
 

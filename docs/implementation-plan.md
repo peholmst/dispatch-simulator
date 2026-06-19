@@ -28,13 +28,14 @@ Completed:
 - Deterministic simulation core:
   - Seeded random streams.
   - Simulation clock, pause, and speed controls.
-  - Incident generation from validated profiles and spawn locations.
-  - Initial emergency report delivery.
+  - Deterministic incident queue generation from validated profiles and spawn locations.
+  - Initial and duplicate emergency report delivery.
   - Player classification by dispatch code and priority.
   - Assisted and manual dispatch commands.
   - Straight-line mocked travel and unit arrivals.
   - First-arrival windshield reports.
   - Control, containment, escalation, commitment, EMS transport completion, and recovery handling.
+  - Commitment/release handling for units that arrive after incident control.
   - Event timeline and debrief generation.
 - Fastify API server with a basic WebSocket state stream.
 - Vite React frontend with shift controls, incident classification, assisted/manual dispatch, unit status, placeholder spatial view, timeline, and debrief.
@@ -64,7 +65,7 @@ Completed:
 
 Current implementation focus:
 
-- Add automated browser regression coverage and tune the vertical-slice UX.
+- Build the dispatch UI slice on top of the now-deterministic simulation core.
 - Keep routing mocked or straight-line until the map/routing milestone.
 
 ## Milestone 0: Thin Playable Vertical Slice
@@ -190,22 +191,29 @@ Linting/formatting decision:
 
 Goal: run a deterministic shift without full map/routing polish.
 
-Recommended next implementation slice:
+Status: complete for the first deterministic core slice.
 
-- Use TDD for future game features.
-- First public interface should support starting a shift with a seed and loaded config.
-- First behavior to test: starting a shift produces an initial state with available units and a deterministic incident queue/report timeline.
+Completed:
 
-Likely tasks:
+- Public shift API starts from a seed and loaded config.
+- Starting a shift creates available unit state and a deterministic incident queue/report timeline.
+- Supports configurable incident count and deterministic spacing for queued incidents.
+- Generates incidents from profiles and spawn locations.
+- Delivers initial reports and duplicate reports from incident profile report rules.
+- Supports simulation clock advance, pause, and speed.
+- Supports player classification commands.
+- Supports assisted and manual dispatch commands.
+- Moves units with straight-line mocked travel and deterministic turnout.
+- Handles unit arrival and first-arrival windshield reports.
+- Handles control, containment, escalation, commitment, EMS transport completion, and recovery/release.
+- Correctly commits and releases units that arrive after an incident has already been controlled.
+- Emits event timeline entries for reports, duplicate reports, classification, dispatch, arrivals, windshield reports, containment, escalation, control, EMS transport completion, unit availability, and shift finish.
+- Includes focused Vitest coverage for deterministic queue/report generation, duplicate report delivery, clock controls, medical and fire control loops, and staggered-arrival release.
 
-- Implement seeded random streams.
-- Implement simulation clock, pause, and speed.
-- Implement incident generation from profiles.
-- Implement report generation.
-- Implement unit status lifecycle.
-- Implement player commands.
-- Implement control, containment, escalation, and commitment.
-- Implement event timeline.
+Remaining hardening for later milestones:
+
+- Add richer player commands such as hold, reroute, recall, link report, and split report in the dispatch UI slice.
+- Replace straight-line mocked travel in the map/routing milestone.
 
 ## Milestone 3: Dispatch UI Slice
 

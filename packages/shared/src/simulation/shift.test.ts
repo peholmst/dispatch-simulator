@@ -20,21 +20,43 @@ function withOnlyIncident(config: LoadedConfig, profileId: string): LoadedConfig
 }
 
 describe("simulation shift vertical slice", () => {
-  it("starts a deterministic shift and delivers an ambiguous report", async () => {
+  it("starts a deterministic shift with an incident queue and delivers ambiguous reports", async () => {
     const config = await loadConfig(process.cwd());
 
-    const first = startShift(config, { seed: "milestone-0", startTimeSeconds: 0 });
-    const second = startShift(config, { seed: "milestone-0", startTimeSeconds: 0 });
+    const first = startShift(config, { seed: "milestone-0", startTimeSeconds: 0, incidentCount: 2 });
+    const second = startShift(config, { seed: "milestone-0", startTimeSeconds: 0, incidentCount: 2 });
 
     expect(first.incidents).toEqual(second.incidents);
-    expect(first.incidents).toHaveLength(1);
+    expect(first.incidents).toHaveLength(2);
     expect(first.incidents[0]!.status).toBe("pending_report");
+    expect(first.incidents[1]!.createdAt).toBeGreaterThan(first.incidents[0]!.createdAt);
 
-    const withReport = advanceSimulation(first, first.incidents[0]!.reportDueAt);
+    const withReport = advanceSimulation(first, first.incidents[1]!.reportDueAt);
 
     expect(withReport.incidents[0]!.status).toBe("reported");
+    expect(withReport.incidents[1]!.status).toBe("reported");
     expect(withReport.incidents[0]!.reportText).toBeTruthy();
-    expect(withReport.timeline.some((event) => event.type === "report_received")).toBe(true);
+    expect(withReport.timeline.filter((event) => event.type === "report_received")).toHaveLength(2);
+  });
+
+  it("delivers deterministic duplicate reports from incident profiles", async () => {
+    const config = withOnlyIncident(await loadConfig(process.cwd()), "apartment_fire");
+    const started = startShift(config, { seed: "duplicate-report", startTimeSeconds: 0 });
+    const incident = started.incidents[0]!;
+
+    expect(incident.duplicateReports).toHaveLength(1);
+    expect(incident.duplicateReports[0]!.dueAt).toBeGreaterThan(incident.reportDueAt);
+
+    const withDuplicate = advanceSimulation(started, incident.duplicateReports[0]!.dueAt);
+
+    expect(withDuplicate.incidents[0]!.duplicateReports[0]!.deliveredAt).toBe(incident.duplicateReports[0]!.dueAt);
+    expect(withDuplicate.timeline).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        type: "duplicate_report_received",
+        incidentId: incident.id,
+        message: expect.stringContaining("flames")
+      })
+    ]));
   });
 
   it("supports clock pause and speed controls", async () => {
@@ -97,5 +119,31 @@ describe("simulation shift vertical slice", () => {
 
     expect(state.incidents[0]!.controlledAt).toBe(latestArrival);
     expect(state.incidents[0]!.assignedUnitIds).toEqual(assigned);
+  });
+
+  it("commits and releases units that arrive after an incident was already controlled", async () => {
+    const config = withOnlyIncident(await loadConfig(process.cwd()), "apartment_fire");
+    let state = startShift(config, { seed: "staggered-release", startTimeSeconds: 0 });
+    const incident = state.incidents[0]!;
+
+    state = advanceSimulation(state, incident.reportDueAt);
+    state = classifyIncident(state, incident.id, "402", "B");
+    state = dispatchSuggestedUnits(state, incident.id);
+
+    const assigned = state.incidents[0]!.assignedUnitIds;
+    const earliestArrival = Math.min(...assigned.map((unitId) => state.units[unitId]!.arrivalAt ?? Number.POSITIVE_INFINITY));
+    const latestArrival = Math.max(...assigned.map((unitId) => state.units[unitId]!.arrivalAt ?? 0));
+
+    state = advanceSimulation(state, earliestArrival - state.clock.now);
+    expect(state.incidents[0]!.controlledAt).toBe(earliestArrival);
+
+    state = advanceSimulation(state, latestArrival - state.clock.now);
+    expect(assigned.every((unitId) => state.units[unitId]!.status === "committed_on_scene")).toBe(true);
+
+    const commitmentClearsAt = state.incidents[0]!.commitmentClearsAt;
+    expect(commitmentClearsAt).toBeGreaterThan(latestArrival);
+
+    state = advanceSimulation(state, commitmentClearsAt! - state.clock.now);
+    expect(assigned.every((unitId) => state.units[unitId]!.status === "available_mobile")).toBe(true);
   });
 });
