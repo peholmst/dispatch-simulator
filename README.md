@@ -5,19 +5,13 @@ Emergency dispatch simulation game prototype focused on a thin playable vertical
 ## Requirements
 
 - Node.js 20 or newer
-- npm
+- pnpm
 
-The project is configured as a pnpm workspace, but the current root scripts use locally installed tools so they can be run with npm after dependencies are installed.
+The project is configured as a pnpm workspace.
 
 ## Install
 
 From the repository root:
-
-```powershell
-npm install
-```
-
-If you prefer pnpm and have it available through Corepack:
 
 ```powershell
 corepack prepare pnpm@9.15.4 --activate
@@ -29,7 +23,7 @@ corepack pnpm install
 The sample Tampere configuration can be validated with:
 
 ```powershell
-npm run validate:config
+corepack pnpm validate:config
 ```
 
 This loads YAML from `config/`, `regions/tampere/`, and `locales/en.yaml`, then checks schema validity, references, localization keys, resource capabilities, response plans, and strict incident controllability.
@@ -39,7 +33,7 @@ This loads YAML from `config/`, `regions/tampere/`, and `locales/en.yaml`, then 
 Run all current tests:
 
 ```powershell
-npm test
+corepack pnpm test
 ```
 
 The current tests cover config loading/validation and the assisted dispatch suggestion algorithm.
@@ -49,7 +43,7 @@ The current tests cover config loading/validation and the assisted dispatch sugg
 Compile the TypeScript packages:
 
 ```powershell
-npm run build
+corepack pnpm build
 ```
 
 Build output is written to package `dist/` folders, which are ignored by Git.
@@ -78,7 +72,7 @@ docs/          Design and implementation planning documents.
 ## Useful Commands
 
 ```powershell
-npm run validate:config
-npm test
-npm run build
+corepack pnpm validate:config
+corepack pnpm test
+corepack pnpm build
 ```
