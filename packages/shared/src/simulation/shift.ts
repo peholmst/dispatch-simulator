@@ -5,7 +5,8 @@ import {
   type IncidentProfile,
   type LoadedConfig,
   type Resource,
-  type ResourceType
+  type ResourceType,
+  type ScoringProfile
 } from "../config/index.js";
 import { suggestDispatch } from "../dispatch/suggest.js";
 import { pointAlongRoute, type Coordinates } from "./geometry.js";
@@ -17,6 +18,7 @@ import type {
   DispatchCommand,
   IncidentSimulationState,
   ReportCommand,
+  ScoreDimension,
   ShiftDebrief,
   ShiftState,
   StartShiftOptions,
@@ -218,6 +220,174 @@ function addCapabilities(total: CapabilityMap, capabilities: CapabilityMap): voi
   for (const [capability, value] of Object.entries(capabilities)) {
     total[capability] = (total[capability] ?? 0) + value;
   }
+}
+
+function sumCapabilities(capabilities: CapabilityMap): number {
+  return Object.values(capabilities).reduce((total, value) => total + value, 0);
+}
+
+function capabilityCoverage(required: CapabilityMap, provided: CapabilityMap): number {
+  const requiredTotal = sumCapabilities(required);
+  if (requiredTotal === 0) {
+    return 1;
+  }
+
+  const covered = Object.entries(required).reduce((total, [capability, requiredValue]) => {
+    return total + Math.min(requiredValue, provided[capability] ?? 0);
+  }, 0);
+  return covered / requiredTotal;
+}
+
+function assignedCapabilities(state: ShiftState, incident: IncidentSimulationState): CapabilityMap {
+  const provided: CapabilityMap = {};
+  for (const unitId of incident.assignedUnitIds) {
+    const resource = state.config.resources.find((candidate) => candidate.id === unitId);
+    if (!resource) {
+      continue;
+    }
+    addCapabilities(provided, resolveResourceCapabilities(resourceTypeFor(state.config, resource), resource));
+  }
+  return provided;
+}
+
+function linearCredit(value: number | undefined, fullCredit: number, zeroCredit: number): number {
+  if (value === undefined) {
+    return 0;
+  }
+  if (value <= fullCredit) {
+    return 1;
+  }
+  if (value >= zeroCredit) {
+    return 0;
+  }
+  return 1 - ((value - fullCredit) / (zeroCredit - fullCredit));
+}
+
+function roundScore(value: number): number {
+  return Math.round(value * 10) / 10;
+}
+
+function scoreDimension(
+  id: ScoreDimension["id"],
+  label: string,
+  maxScore: number,
+  credit: number,
+  explanation: string
+): ScoreDimension {
+  return {
+    id,
+    label,
+    score: roundScore(maxScore * Math.max(0, Math.min(1, credit))),
+    maxScore,
+    explanation
+  };
+}
+
+function formatCapabilities(capabilities: CapabilityMap): string {
+  const entries = Object.entries(capabilities);
+  if (entries.length === 0) {
+    return "none";
+  }
+  return entries.map(([capability, value]) => `${capability} ${value}`).join(", ");
+}
+
+function scoreClassification(incident: IncidentSimulationState, profile: IncidentProfile, scoring: ScoringProfile): ScoreDimension {
+  const selected = incident.selectedCode;
+  const credit = selected && profile.classification.idealCodes.includes(selected)
+    ? 1
+    : selected && profile.classification.acceptableCodes.includes(selected)
+      ? 0.6
+      : 0;
+  const explanation = selected
+    ? `Selected ${selected}; ideal ${profile.classification.idealCodes.join("/")}, acceptable ${profile.classification.acceptableCodes.join("/")}.`
+    : `No classification selected; ideal ${profile.classification.idealCodes.join("/")}.`;
+  return scoreDimension("classification", "Classification", scoring.dimensions.classification, credit, explanation);
+}
+
+function scorePriority(incident: IncidentSimulationState, profile: IncidentProfile, scoring: ScoringProfile): ScoreDimension {
+  const selected = incident.selectedPriority;
+  const credit = selected && profile.classification.idealPriorities.includes(selected)
+    ? 1
+    : selected && profile.classification.acceptablePriorities.includes(selected)
+      ? 0.6
+      : 0;
+  const explanation = selected
+    ? `Selected ${selected}; ideal ${profile.classification.idealPriorities.join("/")}, acceptable ${profile.classification.acceptablePriorities.join("/")}.`
+    : `No priority selected; ideal ${profile.classification.idealPriorities.join("/")}.`;
+  return scoreDimension("priority", "Priority", scoring.dimensions.priority, credit, explanation);
+}
+
+function scoreDispatchAdequacy(
+  incident: IncidentSimulationState,
+  profile: IncidentProfile,
+  scoring: ScoringProfile,
+  provided: CapabilityMap
+): ScoreDimension {
+  const stage = profile.stages[incident.stageIndex]!;
+  const credit = capabilityCoverage(stage.controlRequires, provided);
+  const missing = missingCapabilities(stage.controlRequires, provided);
+  const explanation = `Assigned ${formatCapabilities(provided)}; required ${formatCapabilities(stage.controlRequires)}; missing ${formatCapabilities(missing)}.`;
+  return scoreDimension("dispatchAdequacy", "Dispatch Adequacy", scoring.dimensions.dispatchAdequacy, credit, explanation);
+}
+
+function scoreTimeToControl(
+  incident: IncidentSimulationState,
+  scoring: ScoringProfile
+): ScoreDimension {
+  const start = incident.reportedAt ?? incident.createdAt;
+  const elapsed = incident.controlledAt === undefined ? undefined : incident.controlledAt - start;
+  const credit = linearCredit(elapsed, scoring.timeToControl.fullCreditSeconds, scoring.timeToControl.zeroCreditSeconds);
+  const explanation = elapsed === undefined
+    ? `Incident was not controlled; full credit by ${scoring.timeToControl.fullCreditSeconds}s, zero by ${scoring.timeToControl.zeroCreditSeconds}s.`
+    : `Controlled ${Math.round(elapsed)}s after report; full credit by ${scoring.timeToControl.fullCreditSeconds}s, zero by ${scoring.timeToControl.zeroCreditSeconds}s.`;
+  return scoreDimension("timeToControl", "Time To Control", scoring.dimensions.timeToControl, credit, explanation);
+}
+
+function scoreEscalationPrevention(
+  incident: IncidentSimulationState,
+  scoring: ScoringProfile
+): ScoreDimension {
+  const credit = incident.escalatedAt === undefined ? 1 : 0;
+  const explanation = incident.escalatedAt === undefined
+    ? "No escalation occurred before control."
+    : `Incident escalated at ${Math.round(incident.escalatedAt)}s.`;
+  return scoreDimension("escalationPrevention", "Escalation Prevention", scoring.dimensions.escalationPrevention, credit, explanation);
+}
+
+function scoreEmsTransport(
+  incident: IncidentSimulationState,
+  scoring: ScoringProfile
+): ScoreDimension {
+  if (!incident.emsTransportRequired) {
+    return scoreDimension("emsTransport", "EMS Transport", scoring.dimensions.emsTransport, 1, "Transport was not required.");
+  }
+
+  const start = incident.controlledAt ?? incident.firstArrivalAt ?? incident.reportedAt ?? incident.createdAt;
+  const elapsed = incident.emsTransportCompletedAt === undefined ? undefined : incident.emsTransportCompletedAt - start;
+  const credit = linearCredit(elapsed, scoring.emsTransport.fullCreditSeconds, scoring.emsTransport.zeroCreditSeconds);
+  const explanation = elapsed === undefined
+    ? `Required transport was not completed; full credit by ${scoring.emsTransport.fullCreditSeconds}s, zero by ${scoring.emsTransport.zeroCreditSeconds}s.`
+    : `Transport completed ${Math.round(elapsed)}s after control/arrival; full credit by ${scoring.emsTransport.fullCreditSeconds}s, zero by ${scoring.emsTransport.zeroCreditSeconds}s.`;
+  return scoreDimension("emsTransport", "EMS Transport", scoring.dimensions.emsTransport, credit, explanation);
+}
+
+function scoreOverDispatch(
+  incident: IncidentSimulationState,
+  profile: IncidentProfile,
+  scoring: ScoringProfile,
+  provided: CapabilityMap
+): ScoreDimension {
+  const stage = profile.stages[incident.stageIndex]!;
+  const requiredTotal = sumCapabilities(stage.controlRequires);
+  const surplus = Object.entries(provided).reduce((total, [capability, value]) => {
+    return total + Math.max(0, value - (stage.controlRequires[capability] ?? 0));
+  }, 0);
+  const surplusRatio = requiredTotal === 0 ? 0 : surplus / requiredTotal;
+  const credit = surplusRatio <= scoring.overDispatch.freeSurplusRatio
+    ? 1
+    : linearCredit(surplusRatio, scoring.overDispatch.freeSurplusRatio, scoring.overDispatch.zeroCreditSurplusRatio);
+  const explanation = `Surplus capability ratio ${surplusRatio.toFixed(2)}; free up to ${scoring.overDispatch.freeSurplusRatio}, zero at ${scoring.overDispatch.zeroCreditSurplusRatio}.`;
+  return scoreDimension("overDispatch", "Over-Dispatch", scoring.dimensions.overDispatch, credit, explanation);
 }
 
 function resourceTypeFor(config: LoadedConfig, resource: Resource): ResourceType {
@@ -806,10 +976,29 @@ export function createDebrief(state: ShiftState): ShiftDebrief {
   }
   const incidents: DebriefIncident[] = state.incidents.map((incident) => {
     const profile = state.config.incidents.find((candidate) => candidate.id === incident.profileId)!;
+    const scoring = state.config.scoringProfiles.find((candidate) => candidate.id === profile.scoring.outcomeProfile);
+    if (!scoring) {
+      throw new Error(`Unknown scoring profile ${profile.scoring.outcomeProfile}`);
+    }
+    const provided = assignedCapabilities(state, incident);
+    const dimensions = [
+      scoreClassification(incident, profile, scoring),
+      scorePriority(incident, profile, scoring),
+      scoreDispatchAdequacy(incident, profile, scoring, provided),
+      scoreTimeToControl(incident, scoring),
+      scoreEscalationPrevention(incident, scoring),
+      scoreEmsTransport(incident, scoring),
+      scoreOverDispatch(incident, profile, scoring, provided)
+    ];
+    const score = roundScore(dimensions.reduce((total, dimension) => total + dimension.score, 0));
+    const maxScore = roundScore(dimensions.reduce((total, dimension) => total + dimension.maxScore, 0));
     return {
       incidentId: incident.id,
       profileId: incident.profileId,
       hiddenTruth: localized(state.config, resolveLocalizationKey(profile.localizationPrefix, profile.displayNameKey)),
+      score,
+      maxScore,
+      dimensions,
       selectedCode: incident.selectedCode,
       selectedPriority: incident.selectedPriority,
       idealCodes: profile.classification.idealCodes,
@@ -825,11 +1014,26 @@ export function createDebrief(state: ShiftState): ShiftDebrief {
       assignedUnitIds: [...incident.assignedUnitIds]
     };
   });
+  const weightedScore = roundScore(incidents.reduce((total, incident) => {
+    const profile = state.config.incidents.find((candidate) => candidate.id === incident.profileId)!;
+    const scoring = state.config.scoringProfiles.find((candidate) => candidate.id === profile.scoring.outcomeProfile)!;
+    return total + (incident.score * scoring.incidentWeight);
+  }, 0));
+  const weightedMaxScore = roundScore(incidents.reduce((total, incident) => {
+    const profile = state.config.incidents.find((candidate) => candidate.id === incident.profileId)!;
+    const scoring = state.config.scoringProfiles.find((candidate) => candidate.id === profile.scoring.outcomeProfile)!;
+    return total + (incident.maxScore * scoring.incidentWeight);
+  }, 0));
 
   return {
     seed: state.seed,
+    configVersion: "config-v1",
+    regionVersion: `${state.config.region.id}-v1`,
     startedAt,
     finishedAt,
+    score: weightedScore,
+    maxScore: weightedMaxScore,
+    percentage: weightedMaxScore === 0 ? 0 : roundScore((weightedScore / weightedMaxScore) * 100),
     incidents,
     timeline: state.timeline.map((event) => ({ ...event, unitIds: event.unitIds ? [...event.unitIds] : undefined }))
   };

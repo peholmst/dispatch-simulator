@@ -136,6 +136,9 @@ export interface DebriefIncident {
   incidentId: string;
   profileId: string;
   hiddenTruth: string;
+  score: number;
+  maxScore: number;
+  dimensions: ScoreDimension[];
   selectedCode?: string;
   selectedPriority?: string;
   idealCodes: string[];
@@ -151,10 +154,30 @@ export interface DebriefIncident {
   assignedUnitIds: string[];
 }
 
+export interface ScoreDimension {
+  id:
+    | "classification"
+    | "priority"
+    | "dispatchAdequacy"
+    | "timeToControl"
+    | "escalationPrevention"
+    | "emsTransport"
+    | "overDispatch";
+  label: string;
+  score: number;
+  maxScore: number;
+  explanation: string;
+}
+
 export interface ShiftDebrief {
   seed: string;
+  configVersion: string;
+  regionVersion: string;
   startedAt: number;
   finishedAt: number;
+  score: number;
+  maxScore: number;
+  percentage: number;
   incidents: DebriefIncident[];
   timeline: TimelineEvent[];
 }

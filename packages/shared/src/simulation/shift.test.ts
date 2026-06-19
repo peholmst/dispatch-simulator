@@ -102,6 +102,18 @@ describe("simulation shift vertical slice", () => {
     const debrief = createDebrief(state);
 
     expect(debrief.incidents[0]!.hiddenTruth).toBeTruthy();
+    expect(debrief.configVersion).toBe("config-v1");
+    expect(debrief.regionVersion).toBe("tampere-v1");
+    expect(debrief.percentage).toBeGreaterThan(0);
+    expect(debrief.incidents[0]!.dimensions.map((dimension) => dimension.id)).toEqual([
+      "classification",
+      "priority",
+      "dispatchAdequacy",
+      "timeToControl",
+      "escalationPrevention",
+      "emsTransport",
+      "overDispatch"
+    ]);
     expect(debrief.incidents[0]!.selectedCode).toBe("704");
     expect(debrief.incidents[0]!.controlledAt).toBe(arrivalAt);
     expect(debrief.timeline.at(-1)!.type).toBe("shift_finished");

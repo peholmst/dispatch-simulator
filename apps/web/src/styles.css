@@ -275,6 +275,91 @@ h3 {
   border-color: #1f6f5b;
 }
 
+.debrief-header,
+.incident-score,
+.dimension div,
+.summary-strip div {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.debrief-header p,
+.incident-score p,
+.dimension p {
+  color: #5a665f;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.debrief-header > strong {
+  color: #1f6f5b;
+  font-size: 28px;
+}
+
+.scorebar {
+  background: #edf0ec;
+  border-radius: 999px;
+  height: 10px;
+  margin: 10px 0 14px;
+  overflow: hidden;
+}
+
+.scorebar span {
+  background: #1f6f5b;
+  display: block;
+  height: 100%;
+}
+
+.debrief-incidents,
+.dimensions,
+.summary-strip {
+  display: grid;
+  gap: 8px;
+}
+
+.debrief-incident {
+  border-top: 1px solid #edf0ec;
+  padding-top: 10px;
+}
+
+.debrief-times {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+
+.debrief-times span,
+.dimension {
+  background: #f8faf7;
+  border: 1px solid #edf0ec;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.debrief-times span {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.dimension strong,
+.summary-strip strong {
+  color: #17211b;
+}
+
+.dimension span,
+.summary-strip span {
+  color: #5a665f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.summary-strip {
+  margin-top: 14px;
+}
+
 @media (max-width: 900px) {
   .toolbar,
   .grid {

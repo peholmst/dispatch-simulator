@@ -255,14 +255,16 @@ Completed:
 
 Goal: complete the shift feedback loop.
 
-Likely tasks:
+Status: complete for the first scoring and debrief slice.
 
-- Implement score dimensions.
-- Persist completed shift summaries.
-- Store event timeline, seed, config version, and region version.
-- Build debrief UI.
-- Reveal hidden truth after shift.
-- Explain classification, priority, dispatch, escalation, control, containment, and timing outcomes.
+Completed:
+
+- Implemented score dimensions for classification, priority, dispatch adequacy, time to control, escalation prevention, EMS transport, and over-dispatch.
+- Persist completed shift summaries in the server workspace data directory.
+- Store event timeline, seed, config version, and region version in shift debriefs.
+- Built a debrief UI with shift score, per-incident outcomes, hidden truth, and dimension explanations.
+- Reveal hidden truth after shift completion.
+- Explain classification, priority, dispatch, escalation, control, EMS transport, and timing outcomes.
 
 ## Milestone 6: Training and Content Expansion
 
