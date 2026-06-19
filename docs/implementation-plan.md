@@ -161,7 +161,7 @@ Remaining Milestone 0 hardening:
 
 Goal: turn the vertical-slice sample data into validated YAML region/config data.
 
-Status: mostly complete for the first vertical slice. Keep this milestone open for validation hardening as simulation and UI needs reveal gaps.
+Status: complete for the first vertical slice.
 
 Completed:
 
@@ -170,12 +170,21 @@ Completed:
 - Implement localization file loader.
 - Implement validation command.
 - Create tiny sample Tampere test data.
+- Add validation hardening from simulation/UI playability:
+  - ordered numeric ranges.
+  - ordered region bounds.
+  - station, hospital, spawn, and explicit mobile resource coordinates inside region bounds.
+  - resource priority modifier references.
+  - dispatchable-resource fulfillment for response plans.
+  - incident ideal classifications as subsets of acceptable classifications.
+  - valid configured code-priority pairs for incident classifications.
+  - spawn filters that leave at least one concrete location.
+  - stage ordering, first-stage-at-zero, transition probability, and escalation report checks.
+- Add targeted validation tests for range ordering, coordinate bounds, classification/stage playability, and response-plan fulfillability.
 
-Likely follow-up tasks:
+Linting/formatting decision:
 
-- Add validation for additional playability rules found during simulation implementation.
-- Add more targeted validation tests when new config fields are introduced.
-- Decide whether to add linting/formatting scripts.
+- Defer adding ESLint/Prettier until the codebase has enough style surface to justify the dependency and config footprint. Current quality gates are `pnpm validate:config`, `pnpm test`, and `pnpm build`.
 
 ## Milestone 2: Simulation Core
 

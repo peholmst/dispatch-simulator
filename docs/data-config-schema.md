@@ -539,8 +539,21 @@ Region data should include hand-authored spawn zones and/or OSM-derived candidat
 
 Provide an automated config/content validation command.
 
-Validation should check schema correctness, missing localization keys, broken references, duplicate IDs, unknown capabilities, response plans referencing unknown codes or priorities, units referencing missing stations, EMS profiles without hospitals, missing report templates, incident profiles that cannot be controlled with available regional resources, and spawn filters with no valid locations.
+Validation should check schema correctness, missing localization keys, broken references, duplicate IDs, unknown capabilities, response plans referencing unknown codes or priorities, units referencing missing stations, EMS profiles without hospitals, missing report templates, incident profiles that cannot be controlled with available regional resources, response plans that cannot be fulfilled with dispatchable regional resources, and spawn filters with no valid locations.
+
+Validation should also enforce playability invariants discovered by the vertical slice:
+
+- Numeric ranges such as turnout, recovery, report delay, commitment, and EMS handoff durations must be ordered as `[min, max]`.
+- Region bounds must be ordered, and stations, hospitals, spawn locations, and explicit mobile resource coordinates must be inside those bounds.
+- Resource type and resource override priority modifiers must reference known priorities.
+- Incident ideal classifications must also be acceptable classifications.
+- Incident acceptable and ideal code-priority choices must include at least one valid configured dispatch code and priority pair.
+- Incident spawn filters must leave at least one concrete spawn location after applying location type and region tag filters.
+- Incident stages must start with a stage at `0`, then progress in increasing `startsAt` order.
+- Later stages need transition probabilities and escalation report keys so the simulation can make escalation visible.
 
 Incident profiles that cannot be controlled with available regional resources should be warnings by default and errors in strict/test validation mode. This preserves future room for overwhelming disaster content while keeping v1 and automated test configs playable.
+
+Response plans that cannot be fulfilled with dispatchable regional resources should follow the same warning-by-default, error-in-strict behavior.
 
 There is no admin/editor UI in v1. The schema should still be clean enough to support one later.

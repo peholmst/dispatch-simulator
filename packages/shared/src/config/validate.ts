@@ -2,9 +2,12 @@ import {
   resolveLocalizationKey,
   resolveResourceCapabilities,
   type CapabilityMap,
+  type Hospital,
   type IncidentProfile,
   type Resource,
-  type ResourceType
+  type ResourceType,
+  type SpawnLocation,
+  type Station
 } from "./index.js";
 import type { LoadedConfig } from "./load.js";
 
@@ -62,9 +65,13 @@ function addUnknownCapabilityIssues(
   }
 }
 
-function getTotalAvailableCapabilities(resources: Resource[], resourceTypesById: Map<string, ResourceType>): CapabilityMap {
+function getTotalDispatchableCapabilities(resources: Resource[], resourceTypesById: Map<string, ResourceType>): CapabilityMap {
   const totals: CapabilityMap = {};
   for (const resource of resources) {
+    if (resource.initialStatus === "out_of_service") {
+      continue;
+    }
+
     const resourceType = resourceTypesById.get(resource.type);
     if (!resourceType) {
       continue;
@@ -79,6 +86,80 @@ function getTotalAvailableCapabilities(resources: Resource[], resourceTypesById:
 
 function requirementsCanBeMet(requirements: CapabilityMap, totals: CapabilityMap): boolean {
   return Object.entries(requirements).every(([capability, required]) => (totals[capability] ?? 0) >= required);
+}
+
+function rangeIsOrdered(range: [number, number]): boolean {
+  return range[0] <= range[1];
+}
+
+function addRangeOrderIssue(
+  issues: ValidationIssue[],
+  owner: string,
+  field: string,
+  range: [number, number] | undefined
+): void {
+  if (range && !rangeIsOrdered(range)) {
+    addIssue(issues, "error", `${owner} ${field} range start must be <= end`);
+  }
+}
+
+function isInsideRegionBounds(
+  coordinates: { lat: number; lon: number },
+  bounds: LoadedConfig["region"]["bounds"]
+): boolean {
+  return coordinates.lat <= bounds.north &&
+    coordinates.lat >= bounds.south &&
+    coordinates.lon <= bounds.east &&
+    coordinates.lon >= bounds.west;
+}
+
+function addCoordinateBoundsIssue(
+  issues: ValidationIssue[],
+  owner: string,
+  coordinates: { lat: number; lon: number },
+  bounds: LoadedConfig["region"]["bounds"]
+): void {
+  if (!isInsideRegionBounds(coordinates, bounds)) {
+    addIssue(issues, "error", `${owner} coordinates must be inside region bounds`);
+  }
+}
+
+function validateRegionBounds(issues: ValidationIssue[], config: LoadedConfig): void {
+  if (config.region.bounds.north < config.region.bounds.south) {
+    addIssue(issues, "error", `Region ${config.region.id} north bound must be >= south bound`);
+  }
+  if (config.region.bounds.east < config.region.bounds.west) {
+    addIssue(issues, "error", `Region ${config.region.id} east bound must be >= west bound`);
+  }
+}
+
+function validateCoordinateOwners(
+  issues: ValidationIssue[],
+  config: LoadedConfig,
+  items: Array<Station | Hospital | SpawnLocation>,
+  label: string
+): void {
+  for (const item of items) {
+    addCoordinateBoundsIssue(issues, `${label} ${item.id}`, item.coordinates, config.region.bounds);
+  }
+}
+
+function isSubset(values: string[], allowed: string[]): boolean {
+  return values.every((value) => allowed.includes(value));
+}
+
+function validCodePriorityPairs(config: LoadedConfig): Set<string> {
+  return new Set(config.dispatchCodes.flatMap((code) => {
+    return code.validPriorities.map((priority) => `${code.id}-${priority}`);
+  }));
+}
+
+function hasAnyValidClassificationPair(
+  codes: string[],
+  priorities: string[],
+  pairs: Set<string>
+): boolean {
+  return codes.some((code) => priorities.some((priority) => pairs.has(`${code}-${priority}`)));
 }
 
 function validateLocalizationKeys(issues: ValidationIssue[], profile: IncidentProfile, locale: Record<string, string>): void {
@@ -112,7 +193,13 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
   const scoringProfileIds = new Set(config.scoringProfiles.map((profile) => profile.id));
   const spawnLocationTypes = new Set(config.spawnLocations.map((spawnLocation) => spawnLocation.locationType));
   const resourceTypesById = new Map(config.resourceTypes.map((resourceType) => [resourceType.id, resourceType]));
-  const totalCapabilities = getTotalAvailableCapabilities(config.resources, resourceTypesById);
+  const totalCapabilities = getTotalDispatchableCapabilities(config.resources, resourceTypesById);
+  const codePriorityPairs = validCodePriorityPairs(config);
+
+  validateRegionBounds(issues, config);
+  validateCoordinateOwners(issues, config, config.stations, "Station");
+  validateCoordinateOwners(issues, config, config.hospitals, "Hospital");
+  validateCoordinateOwners(issues, config, config.spawnLocations, "Spawn location");
 
   for (const group of [
     ["capability", config.capabilities],
@@ -157,6 +244,16 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
 
   for (const resourceType of config.resourceTypes) {
     addUnknownCapabilityIssues(issues, capabilityIds, `Resource type ${resourceType.id}`, resourceType.capabilities);
+    addRangeOrderIssue(issues, `Resource type ${resourceType.id}`, "turnout.delaySeconds", resourceType.turnout.delaySeconds);
+    addRangeOrderIssue(issues, `Resource type ${resourceType.id}`, "recovery.afterIncidentSeconds", resourceType.recovery.afterIncidentSeconds);
+    for (const priority of Object.keys(resourceType.turnout.priorityModifiers)) {
+      if (!priorityIds.has(priority)) {
+        addIssue(issues, "error", `Resource type ${resourceType.id} turnout priority modifier references unknown priority ${priority}`);
+      }
+    }
+    if (resourceType.crew.min > resourceType.crew.max) {
+      addIssue(issues, "error", `Resource type ${resourceType.id} crew.min must be <= crew.max`);
+    }
     if (resourceType.crew.default < resourceType.crew.min || resourceType.crew.default > resourceType.crew.max) {
       addIssue(issues, "error", `Resource type ${resourceType.id} crew.default must be between min and max`);
     }
@@ -176,6 +273,19 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
       addIssue(issues, "error", `Resource ${resource.id} references unknown station ${resource.stationId}`);
     }
     addUnknownCapabilityIssues(issues, capabilityIds, `Resource ${resource.id} overrides`, resource.overrides.capabilities);
+    addRangeOrderIssue(issues, `Resource ${resource.id} override`, "turnout.delaySeconds", resource.overrides.turnout?.delaySeconds);
+    addRangeOrderIssue(issues, `Resource ${resource.id} override`, "recovery.afterIncidentSeconds", resource.overrides.recovery?.afterIncidentSeconds);
+    for (const priority of Object.keys(resource.overrides.turnout?.priorityModifiers ?? {})) {
+      if (!priorityIds.has(priority)) {
+        addIssue(issues, "error", `Resource ${resource.id} override turnout priority modifier references unknown priority ${priority}`);
+      }
+    }
+    if (
+      resource.initialLocation?.type === "coordinates" &&
+      !isInsideRegionBounds(resource.initialLocation, config.region.bounds)
+    ) {
+      addIssue(issues, "error", `Resource ${resource.id} initialLocation coordinates must be inside region bounds`);
+    }
     if (resource.initialStatus === "available_mobile" && !resource.initialLocation) {
       addIssue(issues, "error", `Resource ${resource.id} is available_mobile and requires initialLocation`);
     }
@@ -204,6 +314,13 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
     }
     addUnknownCapabilityIssues(issues, capabilityIds, `Response plan ${responsePlan.code}-${responsePlan.priority} requires`, responsePlan.requires);
     addUnknownCapabilityIssues(issues, capabilityIds, `Response plan ${responsePlan.code}-${responsePlan.priority} desires`, responsePlan.desires);
+    if (!requirementsCanBeMet(responsePlan.requires, totalCapabilities)) {
+      addIssue(
+        issues,
+        strict ? "error" : "warning",
+        `Response plan ${responsePlan.code}-${responsePlan.priority} cannot be fulfilled with dispatchable regional resources`
+      );
+    }
   }
 
   for (const code of config.dispatchCodes) {
@@ -217,6 +334,8 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
 
   for (const profile of config.incidents) {
     validateLocalizationKeys(issues, profile, config.locale);
+    addRangeOrderIssue(issues, `Incident ${profile.id}`, "initialReportDelaySeconds", profile.initialReportDelaySeconds);
+    addRangeOrderIssue(issues, `Incident ${profile.id}`, "commitment.afterControlSeconds", profile.commitment.afterControlSeconds);
     if (!scoringProfileIds.has(profile.scoring.outcomeProfile)) {
       addIssue(issues, "error", `Incident ${profile.id} references unknown scoring profile ${profile.scoring.outcomeProfile}`);
     }
@@ -231,12 +350,54 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
         addIssue(issues, "error", `Incident ${profile.id} references unknown priority ${priority}`);
       }
     }
+    for (const code of profile.classification.idealCodes) {
+      if (!profile.classification.acceptableCodes.includes(code)) {
+        addIssue(issues, "error", `Incident ${profile.id} ideal dispatch code ${code} must also be acceptable`);
+      }
+    }
+    for (const priority of profile.classification.idealPriorities) {
+      if (!profile.classification.acceptablePriorities.includes(priority)) {
+        addIssue(issues, "error", `Incident ${profile.id} ideal priority ${priority} must also be acceptable`);
+      }
+    }
+    if (!hasAnyValidClassificationPair(profile.classification.acceptableCodes, profile.classification.acceptablePriorities, codePriorityPairs)) {
+      addIssue(issues, "error", `Incident ${profile.id} has no valid acceptable code-priority pair`);
+    }
+    if (!hasAnyValidClassificationPair(profile.classification.idealCodes, profile.classification.idealPriorities, codePriorityPairs)) {
+      addIssue(issues, "error", `Incident ${profile.id} has no valid ideal code-priority pair`);
+    }
+    if (!isSubset(profile.classification.idealCodes, profile.classification.acceptableCodes)) {
+      addIssue(issues, "warning", `Incident ${profile.id} ideal codes are not a subset of acceptable codes`);
+    }
     for (const locationType of profile.spawn.locationTypes) {
       if (!spawnLocationTypes.has(locationType)) {
         addIssue(issues, "error", `Incident ${profile.id} spawn location type ${locationType} has no matching spawn locations`);
       }
     }
-    for (const stage of profile.stages) {
+    const spawnCandidates = config.spawnLocations.filter((spawnLocation) => {
+      const include = profile.spawn.regionTags?.include ?? [];
+      const exclude = profile.spawn.regionTags?.exclude ?? [];
+      return profile.spawn.locationTypes.includes(spawnLocation.locationType) &&
+        include.every((tag) => spawnLocation.regionTags.includes(tag)) &&
+        exclude.every((tag) => !spawnLocation.regionTags.includes(tag));
+    });
+    if (spawnCandidates.length === 0) {
+      addIssue(issues, "error", `Incident ${profile.id} has no spawn locations after applying region tag filters`);
+    }
+    if (profile.stages[0]?.startsAt !== 0) {
+      addIssue(issues, "error", `Incident ${profile.id} first stage must start at 0`);
+    }
+    for (const [stageIndex, stage] of profile.stages.entries()) {
+      if (stageIndex > 0 && stage.startsAt <= profile.stages[stageIndex - 1]!.startsAt) {
+        addIssue(issues, "error", `Incident ${profile.id} stage ${stage.id} starts before previous stage`);
+      }
+      if (stageIndex > 0 && !stage.transition) {
+        addIssue(issues, "warning", `Incident ${profile.id} stage ${stage.id} has no transition probability and is unreachable from the simulation core`);
+      }
+      if (stage.startsAt > 0 && !stage.escalationReportKey) {
+        addIssue(issues, "error", `Incident ${profile.id} stage ${stage.id} starts after 0 and requires escalationReportKey`);
+      }
+      addRangeOrderIssue(issues, `Incident ${profile.id} stage ${stage.id} commitment`, "afterControlSeconds", stage.commitment?.afterControlSeconds);
       addUnknownCapabilityIssues(issues, capabilityIds, `Incident ${profile.id} stage ${stage.id} controlRequires`, stage.controlRequires);
       addUnknownCapabilityIssues(issues, capabilityIds, `Incident ${profile.id} stage ${stage.id} controlDesires`, stage.controlDesires);
       addUnknownCapabilityIssues(issues, capabilityIds, `Incident ${profile.id} stage ${stage.id} containmentRequires`, stage.containmentRequires);
