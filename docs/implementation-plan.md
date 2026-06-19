@@ -65,7 +65,7 @@ Completed:
 
 Current implementation focus:
 
-- Build the dispatch UI slice on top of the now-deterministic simulation core.
+- Harden the browser-verified dispatch UI and prepare for the map/routing milestone.
 - Keep routing mocked or straight-line until the map/routing milestone.
 
 ## Milestone 0: Thin Playable Vertical Slice
@@ -219,15 +219,19 @@ Remaining hardening for later milestones:
 
 Goal: play a simple shift through the browser.
 
-Likely tasks:
+Status: complete for the first dispatch-console slice.
+
+Completed:
 
 - Show incident queue and reports.
 - Allow code and priority selection.
 - Implement assisted dispatch suggestions from response plans.
 - Implement manual dispatch.
 - Show unit list and status.
-- Support hold, reroute, recall, link report, and split report.
+- Support hold, release, reroute, recall, link report, and split report.
 - Stream simulation updates over WebSocket.
+- Add API endpoints for dispatch-console actions.
+- Add simulation regression coverage for hold, recall, reroute, link report, and split report.
 
 ## Milestone 4: Map and Routing
 

@@ -7,7 +7,13 @@ import {
   dispatchSuggestedUnits,
   dispatchUnits,
   finishShift,
+  holdUnits,
+  linkReport,
   loadConfig,
+  recallUnits,
+  releaseHeldUnits,
+  rerouteUnits,
+  splitReport,
   startShift,
   type ShiftState
 } from "@dispatch-simulator/shared";
@@ -29,6 +35,15 @@ interface ClassifyBody {
 interface DispatchBody {
   incidentId: string;
   unitIds: string[];
+}
+
+interface UnitsBody {
+  unitIds: string[];
+}
+
+interface ReportBody {
+  incidentId: string;
+  reportId: string;
 }
 
 type SocketClient = {
@@ -90,6 +105,42 @@ export async function createServer() {
 
   app.post<{ Body: DispatchBody }>("/shift/dispatch", async (request) => {
     shift = dispatchUnits(requireShift(), request.body);
+    broadcast();
+    return publicState();
+  });
+
+  app.post<{ Body: UnitsBody }>("/shift/hold", async (request) => {
+    shift = holdUnits(requireShift(), request.body.unitIds);
+    broadcast();
+    return publicState();
+  });
+
+  app.post<{ Body: UnitsBody }>("/shift/release-held", async (request) => {
+    shift = releaseHeldUnits(requireShift(), request.body.unitIds);
+    broadcast();
+    return publicState();
+  });
+
+  app.post<{ Body: UnitsBody }>("/shift/recall", async (request) => {
+    shift = recallUnits(requireShift(), request.body.unitIds);
+    broadcast();
+    return publicState();
+  });
+
+  app.post<{ Body: DispatchBody }>("/shift/reroute", async (request) => {
+    shift = rerouteUnits(requireShift(), request.body);
+    broadcast();
+    return publicState();
+  });
+
+  app.post<{ Body: ReportBody }>("/shift/link-report", async (request) => {
+    shift = linkReport(requireShift(), request.body);
+    broadcast();
+    return publicState();
+  });
+
+  app.post<{ Body: ReportBody }>("/shift/split-report", async (request) => {
+    shift = splitReport(requireShift(), request.body);
     broadcast();
     return publicState();
   });

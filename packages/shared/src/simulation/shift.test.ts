@@ -7,8 +7,14 @@ import {
   dispatchSuggestedUnits,
   dispatchUnits,
   finishShift,
+  holdUnits,
+  linkReport,
+  recallUnits,
+  releaseHeldUnits,
+  rerouteUnits,
   setPaused,
   setSpeed,
+  splitReport,
   startShift
 } from "./index.js";
 
@@ -145,5 +151,47 @@ describe("simulation shift vertical slice", () => {
 
     state = advanceSimulation(state, commitmentClearsAt! - state.clock.now);
     expect(assigned.every((unitId) => state.units[unitId]!.status === "available_mobile")).toBe(true);
+  });
+
+  it("supports hold, recall, reroute, link report, and split report dispatcher commands", async () => {
+    const config = withOnlyIncident(await loadConfig(process.cwd()), "apartment_fire");
+    let state = startShift(config, {
+      seed: "dispatch-ui-actions",
+      startTimeSeconds: 0,
+      incidentCount: 2,
+      incidentSpacingSeconds: 300
+    });
+
+    state = holdUnits(state, ["tampere_rpi106"]);
+    expect(state.units.tampere_rpi106!.status).toBe("held");
+
+    state = releaseHeldUnits(state, ["tampere_rpi106"]);
+    expect(state.units.tampere_rpi106!.status).toBe("available_mobile");
+
+    const first = state.incidents[0]!;
+    const second = state.incidents[1]!;
+    state = advanceSimulation(state, second.reportDueAt);
+    state = classifyIncident(state, first.id, "402", "B");
+    state = classifyIncident(state, second.id, "402", "B");
+    state = dispatchUnits(state, { incidentId: first.id, unitIds: ["tampere_rpi101"] });
+    expect(state.units.tampere_rpi101!.incidentId).toBe(first.id);
+
+    state = rerouteUnits(state, { incidentId: second.id, unitIds: ["tampere_rpi101"] });
+    expect(state.units.tampere_rpi101!.incidentId).toBe(second.id);
+    expect(state.incidents.find((incident) => incident.id === first.id)!.assignedUnitIds).not.toContain("tampere_rpi101");
+    expect(state.timeline.some((event) => event.type === "units_rerouted")).toBe(true);
+
+    state = recallUnits(state, ["tampere_rpi101"]);
+    expect(state.units.tampere_rpi101!.status).toBe("available_mobile");
+    expect(state.units.tampere_rpi101!.incidentId).toBeUndefined();
+
+    const duplicateReport = first.duplicateReports[0]!;
+    state = advanceSimulation(state, Math.max(duplicateReport.dueAt - state.clock.now, 0));
+    state = linkReport(state, { incidentId: first.id, reportId: duplicateReport.id });
+    expect(state.incidents.find((incident) => incident.id === first.id)!.linkedReportIds).toContain(duplicateReport.id);
+
+    state = splitReport(state, { incidentId: first.id, reportId: duplicateReport.id });
+    expect(state.incidents.some((incident) => incident.splitFromReportId === duplicateReport.id)).toBe(true);
+    expect(state.timeline.some((event) => event.type === "report_split")).toBe(true);
   });
 });

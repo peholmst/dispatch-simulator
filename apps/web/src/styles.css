@@ -52,6 +52,7 @@ button:disabled {
 
 h1,
 h2,
+h3,
 p {
   margin: 0;
 }
@@ -66,6 +67,12 @@ h2 {
   text-transform: uppercase;
 }
 
+h3 {
+  font-size: 13px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
 .grid {
   display: grid;
   gap: 12px;
@@ -77,6 +84,35 @@ h2 {
   border: 1px solid #d8ddd5;
   border-radius: 8px;
   padding: 12px;
+}
+
+.incident-queue {
+  display: grid;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.queue-item {
+  align-items: start;
+  background: #f8faf7;
+  color: #17211b;
+  display: grid;
+  font-weight: 800;
+  justify-items: start;
+  min-height: 48px;
+  padding: 8px 10px;
+  text-align: left;
+}
+
+.queue-item.active {
+  background: #dbeae5;
+  border-color: #1f6f5b;
+}
+
+.queue-item small {
+  color: #5a665f;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .incident,
@@ -125,6 +161,35 @@ h2 {
   margin-top: 14px;
 }
 
+.reports {
+  margin-top: 16px;
+}
+
+.report-row {
+  align-items: center;
+  border-top: 1px solid #edf0ec;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr max-content;
+  min-height: 58px;
+  padding: 8px 0;
+}
+
+.report-row.pending {
+  color: #69736d;
+}
+
+.report-row strong {
+  display: block;
+  font-size: 12px;
+  margin-bottom: 3px;
+}
+
+.report-actions {
+  display: flex;
+  gap: 6px;
+}
+
 .facts span {
   background: #edf0ec;
   border-radius: 6px;
@@ -140,12 +205,23 @@ h2 {
   min-height: 38px;
 }
 
-.unit-row.disabled {
-  color: #69736d;
-}
-
 .unit-row.selected {
   background: #e1f0eb;
+}
+
+.unit-summary {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.unit-summary span {
+  color: #5a665f;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .callsign {

@@ -15,6 +15,7 @@ import type {
   DebriefIncident,
   DispatchCommand,
   IncidentSimulationState,
+  ReportCommand,
   ShiftDebrief,
   ShiftState,
   StartShiftOptions,
@@ -31,6 +32,7 @@ function cloneState(state: ShiftState): ShiftState {
     incidents: state.incidents.map((incident) => ({
       ...incident,
       assignedUnitIds: [...incident.assignedUnitIds],
+      linkedReportIds: [...incident.linkedReportIds],
       duplicateReports: incident.duplicateReports.map((report) => ({ ...report }))
     })),
     units: Object.fromEntries(Object.entries(state.units).map(([id, unit]) => [id, { ...unit }])),
@@ -118,7 +120,8 @@ function createIncident(
     willEscalate,
     escalatesAt: willEscalate && escalationStage ? createdAt + escalationStage.startsAt : undefined,
     emsTransportRequired,
-    assignedUnitIds: []
+    assignedUnitIds: [],
+    linkedReportIds: []
   };
 }
 
@@ -231,6 +234,13 @@ function releaseUnit(state: ShiftState, unit: UnitSimulationState, at = state.cl
     unitIds: [unit.id],
     message: `${unit.callSign} available`
   });
+}
+
+function removeAssignedUnit(incident: IncidentSimulationState | undefined, unitId: string): void {
+  if (!incident) {
+    return;
+  }
+  incident.assignedUnitIds = incident.assignedUnitIds.filter((assignedUnitId) => assignedUnitId !== unitId);
 }
 
 function commitUnitAfterControl(state: ShiftState, incident: IncidentSimulationState, unit: UnitSimulationState): void {
@@ -528,6 +538,172 @@ export function dispatchUnits(state: ShiftState, command: DispatchCommand): Shif
       message: `Dispatched ${dispatched.map((unitId) => next.units[unitId]!.callSign).join(", ")}`
     });
   }
+  return next;
+}
+
+export function holdUnits(state: ShiftState, unitIds: string[]): ShiftState {
+  const next = cloneState(state);
+  const held: string[] = [];
+  for (const unitId of unitIds) {
+    const unit = next.units[unitId];
+    if (!unit || (unit.status !== "available_at_station" && unit.status !== "available_mobile")) {
+      continue;
+    }
+
+    unit.status = "held";
+    held.push(unit.id);
+  }
+
+  if (held.length > 0) {
+    addEvent(next, {
+      type: "units_held",
+      unitIds: held,
+      message: `Held ${held.map((unitId) => next.units[unitId]!.callSign).join(", ")}`
+    });
+  }
+  return next;
+}
+
+export function releaseHeldUnits(state: ShiftState, unitIds: string[]): ShiftState {
+  const next = cloneState(state);
+  const released: string[] = [];
+  for (const unitId of unitIds) {
+    const unit = next.units[unitId];
+    if (!unit || unit.status !== "held") {
+      continue;
+    }
+
+    unit.status = "available_mobile";
+    released.push(unit.id);
+  }
+
+  if (released.length > 0) {
+    addEvent(next, {
+      type: "units_released",
+      unitIds: released,
+      message: `Released ${released.map((unitId) => next.units[unitId]!.callSign).join(", ")}`
+    });
+  }
+  return next;
+}
+
+export function recallUnits(state: ShiftState, unitIds: string[]): ShiftState {
+  const next = cloneState(state);
+  const recalled: string[] = [];
+  for (const unitId of unitIds) {
+    const unit = next.units[unitId];
+    if (!unit || !["en_route", "on_scene", "committed_on_scene", "recovering"].includes(unit.status)) {
+      continue;
+    }
+
+    const incident = next.incidents.find((candidate) => candidate.id === unit.incidentId);
+    removeAssignedUnit(incident, unit.id);
+    unit.status = "available_mobile";
+    unit.incidentId = undefined;
+    unit.destination = undefined;
+    unit.arrivalAt = undefined;
+    unit.availableAt = undefined;
+    recalled.push(unit.id);
+  }
+
+  if (recalled.length > 0) {
+    addEvent(next, {
+      type: "units_recalled",
+      unitIds: recalled,
+      message: `Recalled ${recalled.map((unitId) => next.units[unitId]!.callSign).join(", ")}`
+    });
+  }
+  return next;
+}
+
+export function rerouteUnits(state: ShiftState, command: DispatchCommand): ShiftState {
+  let next = recallUnits(state, command.unitIds);
+  const target = next.incidents.find((candidate) => candidate.id === command.incidentId);
+  if (!target) {
+    throw new Error(`Unknown incident ${command.incidentId}`);
+  }
+  if (!target.selectedCode || !target.selectedPriority) {
+    throw new Error(`Incident ${command.incidentId} must be classified before rerouting units`);
+  }
+
+  next = dispatchUnits(next, command);
+  addEvent(next, {
+    type: "units_rerouted",
+    incidentId: command.incidentId,
+    unitIds: command.unitIds,
+    message: `Rerouted ${command.unitIds.map((unitId) => next.units[unitId]?.callSign ?? unitId).join(", ")} to ${target.displayName}`
+  });
+  return next;
+}
+
+function findReportIncident(state: ShiftState, incidentId: string, reportId: string): {
+  incident: IncidentSimulationState;
+  report: NonNullable<IncidentSimulationState["duplicateReports"][number]>;
+} {
+  const incident = state.incidents.find((candidate) => candidate.id === incidentId);
+  if (!incident) {
+    throw new Error(`Unknown incident ${incidentId}`);
+  }
+  const report = incident.duplicateReports.find((candidate) => candidate.id === reportId);
+  if (!report) {
+    throw new Error(`Unknown report ${reportId}`);
+  }
+  if (report.deliveredAt === undefined) {
+    throw new Error(`Report ${reportId} has not been delivered yet`);
+  }
+  return { incident, report };
+}
+
+export function linkReport(state: ShiftState, command: ReportCommand): ShiftState {
+  const next = cloneState(state);
+  const { incident, report } = findReportIncident(next, command.incidentId, command.reportId);
+  if (!incident.linkedReportIds.includes(report.id)) {
+    incident.linkedReportIds.push(report.id);
+    addEvent(next, {
+      type: "report_linked",
+      incidentId: incident.id,
+      message: `Linked report to ${incident.displayName}: ${report.text}`
+    });
+  }
+  return next;
+}
+
+export function splitReport(state: ShiftState, command: ReportCommand): ShiftState {
+  const next = cloneState(state);
+  const { incident, report } = findReportIncident(next, command.incidentId, command.reportId);
+  const splitId = `${incident.id}_split_${next.incidents.length + 1}`;
+  if (next.incidents.some((candidate) => candidate.splitFromReportId === report.id)) {
+    return next;
+  }
+
+  const splitIncident: IncidentSimulationState = {
+    ...incident,
+    id: splitId,
+    createdAt: next.clock.now,
+    reportDueAt: report.dueAt,
+    reportedAt: next.clock.now,
+    reportText: report.text,
+    duplicateReports: [],
+    selectedCode: undefined,
+    selectedPriority: undefined,
+    firstArrivalAt: undefined,
+    windshieldReport: undefined,
+    containedAt: undefined,
+    controlledAt: undefined,
+    escalatedAt: undefined,
+    emsTransportCompletedAt: undefined,
+    commitmentClearsAt: undefined,
+    assignedUnitIds: [],
+    linkedReportIds: [],
+    splitFromReportId: report.id,
+    status: "reported"
+  };
+  next.incidents.push(splitIncident);
+  addEvent(next, {
+    type: "report_split",
+    incidentId: splitIncident.id,
+    message: `Split report into new incident: ${report.text}`
+  });
   return next;
 }
 

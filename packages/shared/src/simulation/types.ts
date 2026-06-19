@@ -6,6 +6,7 @@ export type SimulationClockMode = "running" | "paused";
 export type UnitStatus =
   | "available_at_station"
   | "available_mobile"
+  | "held"
   | "out_of_service"
   | "en_route"
   | "on_scene"
@@ -20,6 +21,12 @@ export type TimelineEventType =
   | "duplicate_report_received"
   | "incident_classified"
   | "units_dispatched"
+  | "units_held"
+  | "units_released"
+  | "units_recalled"
+  | "units_rerouted"
+  | "report_linked"
+  | "report_split"
   | "unit_arrived"
   | "windshield_report"
   | "incident_contained"
@@ -84,6 +91,8 @@ export interface IncidentSimulationState {
   emsTransportCompletedAt?: number;
   commitmentClearsAt?: number;
   assignedUnitIds: string[];
+  linkedReportIds: string[];
+  splitFromReportId?: string;
 }
 
 export interface SimulationClockState {
@@ -112,6 +121,11 @@ export interface StartShiftOptions {
 export interface DispatchCommand {
   incidentId: string;
   unitIds: string[];
+}
+
+export interface ReportCommand {
+  incidentId: string;
+  reportId: string;
 }
 
 export interface DebriefIncident {
