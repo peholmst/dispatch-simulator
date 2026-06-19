@@ -107,6 +107,8 @@ export interface SimulationClockState {
 
 export interface ShiftState {
   seed: string;
+  scenarioId?: string;
+  difficultyPresetId?: string;
   clock: SimulationClockState;
   status: "active" | "finished";
   config: LoadedConfig;
@@ -117,6 +119,7 @@ export interface ShiftState {
 
 export interface StartShiftOptions {
   seed: string;
+  scenarioId?: string;
   startTimeSeconds?: number;
   incidentCount?: number;
   incidentSpacingSeconds?: number;
@@ -171,6 +174,8 @@ export interface ScoreDimension {
 
 export interface ShiftDebrief {
   seed: string;
+  scenarioId?: string;
+  difficultyPresetId?: string;
   configVersion: string;
   regionVersion: string;
   startedAt: number;

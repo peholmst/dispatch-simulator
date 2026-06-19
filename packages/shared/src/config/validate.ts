@@ -148,6 +148,14 @@ function isSubset(values: string[], allowed: string[]): boolean {
   return values.every((value) => allowed.includes(value));
 }
 
+function matchesScenarioProfileLocation(profile: IncidentProfile, location: SpawnLocation): boolean {
+  const include = profile.spawn.regionTags?.include ?? [];
+  const exclude = profile.spawn.regionTags?.exclude ?? [];
+  return profile.spawn.locationTypes.includes(location.locationType) &&
+    include.every((tag) => location.regionTags.includes(tag)) &&
+    exclude.every((tag) => !location.regionTags.includes(tag));
+}
+
 function validCodePriorityPairs(config: LoadedConfig): Set<string> {
   return new Set(config.dispatchCodes.flatMap((code) => {
     return code.validPriorities.map((priority) => `${code.id}-${priority}`);
@@ -187,11 +195,14 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
   const capabilityIds = new Set(config.capabilities.map((capability) => capability.id));
   const priorityIds = new Set(config.priorities.map((priority) => priority.id));
   const dispatchCodeIds = new Set(config.dispatchCodes.map((code) => code.id));
+  const difficultyPresetIds = new Set(config.difficultyPresets.map((preset) => preset.id));
   const stationIds = new Set(config.stations.map((station) => station.id));
   const resourceTypeIds = new Set(config.resourceTypes.map((resourceType) => resourceType.id));
   const hospitalIds = new Set(config.hospitals.map((hospital) => hospital.id));
   const scoringProfileIds = new Set(config.scoringProfiles.map((profile) => profile.id));
   const spawnLocationTypes = new Set(config.spawnLocations.map((spawnLocation) => spawnLocation.locationType));
+  const spawnLocationIds = new Set(config.spawnLocations.map((spawnLocation) => spawnLocation.id));
+  const incidentProfileIds = new Set(config.incidents.map((incident) => incident.id));
   const resourceTypesById = new Map(config.resourceTypes.map((resourceType) => [resourceType.id, resourceType]));
   const totalCapabilities = getTotalDispatchableCapabilities(config.resources, resourceTypesById);
   const codePriorityPairs = validCodePriorityPairs(config);
@@ -203,6 +214,7 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
 
   for (const group of [
     ["capability", config.capabilities],
+    ["difficulty preset", config.difficultyPresets],
     ["dispatch code", config.dispatchCodes],
     ["hospital", config.hospitals],
     ["incident profile", config.incidents],
@@ -212,7 +224,8 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
     ["response plan", config.responsePlans.map((plan) => ({ id: `${plan.code}-${plan.priority}` }))],
     ["scoring profile", config.scoringProfiles],
     ["station", config.stations],
-    ["spawn location", config.spawnLocations]
+    ["spawn location", config.spawnLocations],
+    ["training scenario", config.trainingScenarios]
   ] as const) {
     for (const duplicate of duplicateIds(group[1])) {
       addIssue(issues, "error", `Duplicate ${group[0]} id ${duplicate}`);
@@ -228,6 +241,15 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
   for (const priority of config.priorities) {
     if (!Object.prototype.hasOwnProperty.call(config.locale, priority.localizationKey)) {
       addIssue(issues, "error", `Missing localization key ${priority.localizationKey} for priority ${priority.id}`);
+    }
+  }
+
+  for (const preset of config.difficultyPresets) {
+    if (!Object.prototype.hasOwnProperty.call(config.locale, preset.localizationKey)) {
+      addIssue(issues, "error", `Missing localization key ${preset.localizationKey} for difficulty preset ${preset.id}`);
+    }
+    if (preset.descriptionKey && !Object.prototype.hasOwnProperty.call(config.locale, preset.descriptionKey)) {
+      addIssue(issues, "error", `Missing localization key ${preset.descriptionKey} for difficulty preset ${preset.id}`);
     }
   }
 
@@ -423,6 +445,42 @@ export function validateConfig(config: LoadedConfig, options: ValidateConfigOpti
           if (hospitalIds.size === 0) {
             addIssue(issues, "error", `Incident ${profile.id} requires EMS transport but no hospitals are configured`);
           }
+        }
+      }
+    }
+  }
+
+  for (const scenario of config.trainingScenarios) {
+    if (!Object.prototype.hasOwnProperty.call(config.locale, scenario.localizationKey)) {
+      addIssue(issues, "error", `Missing localization key ${scenario.localizationKey} for training scenario ${scenario.id}`);
+    }
+    if (scenario.descriptionKey && !Object.prototype.hasOwnProperty.call(config.locale, scenario.descriptionKey)) {
+      addIssue(issues, "error", `Missing localization key ${scenario.descriptionKey} for training scenario ${scenario.id}`);
+    }
+    if (!difficultyPresetIds.has(scenario.difficultyPreset)) {
+      addIssue(issues, "error", `Training scenario ${scenario.id} references unknown difficulty preset ${scenario.difficultyPreset}`);
+    }
+
+    for (const [scenarioIncidentIndex, scenarioIncident] of scenario.incidents.entries()) {
+      const owner = `Training scenario ${scenario.id} incident ${scenarioIncidentIndex + 1}`;
+      const profile = config.incidents.find((candidate) => candidate.id === scenarioIncident.profileId);
+      if (!incidentProfileIds.has(scenarioIncident.profileId) || !profile) {
+        addIssue(issues, "error", `${owner} references unknown incident profile ${scenarioIncident.profileId}`);
+      }
+      if (scenarioIncident.locationId && !spawnLocationIds.has(scenarioIncident.locationId)) {
+        addIssue(issues, "error", `${owner} references unknown spawn location ${scenarioIncident.locationId}`);
+      }
+      addRangeOrderIssue(issues, owner, "reportDelaySeconds", scenarioIncident.reportDelaySeconds);
+      if (
+        scenarioIncidentIndex > 0 &&
+        scenarioIncident.createdAt < scenario.incidents[scenarioIncidentIndex - 1]!.createdAt
+      ) {
+        addIssue(issues, "error", `${owner} starts before previous scenario incident`);
+      }
+      if (profile && scenarioIncident.locationId) {
+        const location = config.spawnLocations.find((candidate) => candidate.id === scenarioIncident.locationId);
+        if (location && !matchesScenarioProfileLocation(profile, location)) {
+          addIssue(issues, "error", `${owner} location ${location.id} does not match profile spawn rules`);
         }
       }
     }

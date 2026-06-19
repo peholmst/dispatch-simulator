@@ -1,0 +1,15 @@
+id: smoke_then_fire
+localizationKey: training.smoke_then_fire.name
+descriptionKey: training.smoke_then_fire.description
+difficultyPreset: standard
+seed: training-smoke-fire
+startTimeSeconds: 0
+incidents:
+  - profileId: automatic_alarm
+    locationId: koskipuisto_office
+    createdAt: 0
+    reportDelaySeconds: [0, 0]
+  - profileId: apartment_fire
+    locationId: kaleva_apartment_1
+    createdAt: 360
+    reportDelaySeconds: [30, 30]

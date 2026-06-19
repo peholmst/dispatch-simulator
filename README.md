@@ -26,7 +26,7 @@ The sample Tampere configuration can be validated with:
 corepack pnpm validate:config
 ```
 
-This loads YAML from `config/`, `regions/tampere/`, and `locales/en.yaml`, then checks schema validity, references, localization keys, resource capabilities, response plans, and strict incident controllability.
+This loads YAML from `config/`, `regions/tampere/`, and `locales/en.yaml`, then checks schema validity, references, localization keys, resource capabilities, response plans, training scenarios, and strict incident controllability.
 
 ## Test
 
@@ -36,7 +36,7 @@ Run all current tests:
 corepack pnpm test
 ```
 
-The current tests cover config loading/validation and the assisted dispatch suggestion algorithm.
+The current tests cover config loading/validation, training scenarios, the simulation loop, scoring/debriefs, routing movement, and the assisted dispatch suggestion algorithm.
 
 ## Build
 
@@ -83,7 +83,8 @@ docs/          Design and implementation planning documents.
 - `packages/shared/src/config/` contains config schemas, loading, validation, and tests.
 - `packages/shared/src/dispatch/` contains the assisted dispatch suggestion algorithm and tests.
 - `packages/shared/src/simulation/` contains the deterministic shift simulation core and tests.
-- `config/incidents/` contains the first incident profiles: `apartment_fire` and `chest_pain`.
+- `config/incidents/` contains the incident profiles: `apartment_fire`, `automatic_alarm`, `chest_pain`, and `fall_injury`.
+- `config/training_scenarios/` contains replayable scripted starts for tutorial and busier practice sessions.
 - `regions/tampere/` contains the first sample region data.
 
 ## Useful Commands

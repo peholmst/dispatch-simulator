@@ -27,6 +27,7 @@ config/response_plans.yaml
 config/scoring_profiles.yaml
 config/difficulty_presets.yaml
 config/incidents/*.yaml
+config/training_scenarios/*.yaml
 locales/en.yaml
 regions/tampere/region.yaml
 regions/tampere/stations.yaml
@@ -69,6 +70,20 @@ Codes and descriptions are configurable by an admin. The visible text comes from
 ## Priorities
 
 Priority codes are configurable, with Finnish-style A/B/C/D defaults. Priority affects scoring expectations, queue urgency, response-plan selection, and response mode/travel modifiers.
+
+## Difficulty Presets
+
+Difficulty presets define replay shape defaults that scenario authors and future random-shift setup can reuse:
+
+```yaml
+- id: standard
+  localizationKey: difficulty.standard.name
+  descriptionKey: difficulty.standard.description
+  incidentCount: 2
+  incidentSpacingSeconds: 600
+```
+
+The active simulation currently uses scenario incident scripts directly when a scenario is selected. Presets still provide stable content vocabulary for tutorial, standard, and busy training material.
 
 ## Response Plans
 
@@ -519,6 +534,30 @@ reports:
 
 Duplicate report `delaySeconds` values are relative to the initial report being delivered to the player, not relative to hidden incident spawn time.
 
+## Training Scenarios
+
+Training scenarios are deterministic scripted starts stored one scenario per YAML file under `config/training_scenarios/*.yaml`. They make content teachable and replayable without changing incident profile rules.
+
+```yaml
+id: smoke_then_fire
+localizationKey: training.smoke_then_fire.name
+descriptionKey: training.smoke_then_fire.description
+difficultyPreset: standard
+seed: training-smoke-fire
+startTimeSeconds: 0
+incidents:
+  - profileId: automatic_alarm
+    locationId: koskipuisto_office
+    createdAt: 0
+    reportDelaySeconds: [0, 0]
+  - profileId: apartment_fire
+    locationId: kaleva_apartment_1
+    createdAt: 360
+    reportDelaySeconds: [30, 30]
+```
+
+`createdAt` and `startTimeSeconds` are simulation seconds. `reportDelaySeconds` overrides the incident profile's initial report delay for that scripted occurrence. `locationId` is optional; when omitted, the scenario still uses the profile's spawn filters and deterministic seed.
+
 ## Spawn Locations
 
 Incident profiles declare allowed location types such as:
@@ -551,6 +590,8 @@ Validation should also enforce playability invariants discovered by the vertical
 - Incident spawn filters must leave at least one concrete spawn location after applying location type and region tag filters.
 - Incident stages must start with a stage at `0`, then progress in increasing `startsAt` order.
 - Later stages need transition probabilities and escalation report keys so the simulation can make escalation visible.
+- Training scenarios must reference known difficulty presets, incident profiles, and spawn locations.
+- Training scenario report delay ranges must be ordered, scripted incidents must be in increasing `createdAt` order, and pinned spawn locations must match the incident profile's spawn filters.
 
 Incident profiles that cannot be controlled with available regional resources should be warnings by default and errors in strict/test validation mode. This preserves future room for overwhelming disaster content while keeping v1 and automated test configs playable.
 

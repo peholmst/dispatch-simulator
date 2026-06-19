@@ -1,11 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createRoot } from "react-dom/client";
 import maplibregl, { type GeoJSONSource, type LngLatBoundsLike, type StyleSpecification } from "maplibre-gl";
-import type { IncidentSimulationState, ScheduledIncidentReport, ShiftDebrief, ShiftState, UnitSimulationState } from "@dispatch-simulator/shared";
+import type { IncidentSimulationState, LoadedConfig, ScheduledIncidentReport, ShiftDebrief, ShiftState, UnitSimulationState } from "@dispatch-simulator/shared";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./styles.css";
 
 interface ApiState {
+  config?: LoadedConfig;
   shift?: ShiftState;
   debrief?: ShiftDebrief;
   completedShiftSummaries?: CompletedShiftSummary[];
@@ -14,6 +15,8 @@ interface ApiState {
 interface CompletedShiftSummary {
   id: string;
   seed: string;
+  scenarioId?: string;
+  difficultyPresetId?: string;
   configVersion: string;
   regionVersion: string;
   startedAt: number;
@@ -362,6 +365,7 @@ function MapView({ shift, activeIncidentId }: {
 function App() {
   const [apiState, setApiState] = useState<ApiState>({});
   const [seed, setSeed] = useState("demo-shift");
+  const [scenarioId, setScenarioId] = useState("");
   const [code, setCode] = useState("704");
   const [priority, setPriority] = useState("B");
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
@@ -369,6 +373,8 @@ function App() {
   const [error, setError] = useState<string>();
 
   const shift = apiState.shift;
+  const config = shift?.config ?? apiState.config;
+  const scenarios = config?.trainingScenarios ?? [];
   const incident = shift?.incidents.find((candidate) => candidate.id === activeIncidentId) ?? shift?.incidents[0];
   const dispatchCode = shift?.config.dispatchCodes.find((candidate) => candidate.id === code);
   const validPriorities = dispatchCode?.validPriorities ?? [];
@@ -421,8 +427,23 @@ function App() {
           <p>{shift ? `Shift ${shift.status} at ${formatTime(shift.clock.now)}` : "No active shift"}</p>
         </div>
         <input value={seed} onChange={(event) => setSeed(event.target.value)} aria-label="Seed" />
+        <select value={scenarioId} onChange={(event) => {
+          const nextScenarioId = event.target.value;
+          setScenarioId(nextScenarioId);
+          const scenario = scenarios.find((candidate) => candidate.id === nextScenarioId);
+          if (scenario) {
+            setSeed(scenario.seed);
+          }
+        }} aria-label="Training scenario">
+          <option value="">Random shift</option>
+          {scenarios.map((scenario) => (
+            <option key={scenario.id} value={scenario.id}>
+              {config?.locale[scenario.localizationKey] ?? scenario.id}
+            </option>
+          ))}
+        </select>
         <button onClick={() => run(async () => {
-          const next = await post<ApiState>("/api/shift/start", { seed });
+          const next = await post<ApiState>("/api/shift/start", { seed, scenarioId: scenarioId || undefined });
           setActiveIncidentId(next.shift?.incidents[0]?.id);
           setSelectedUnits([]);
           return next;

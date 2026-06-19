@@ -38,3 +38,13 @@
   type: advanced_ambulance
   stationId: station_12
   initialStatus: available_at_station
+- id: tampere_rpi131
+  callSign: RPI131
+  type: pumper
+  stationId: station_13
+  initialStatus: available_at_station
+- id: tampere_epi141
+  callSign: EPI141
+  type: basic_ambulance
+  stationId: station_13
+  initialStatus: available_at_station

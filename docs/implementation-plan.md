@@ -270,13 +270,17 @@ Completed:
 
 Goal: make the first version teachable and replayable.
 
-Likely tasks:
+Status: complete for the first training/content expansion slice.
 
-- Add scripted training scenarios.
-- Expand Tampere sample data.
-- Add more incident profiles and report templates.
-- Tune difficulty presets.
-- Improve validation for playability.
+Completed:
+
+- Added loadable difficulty presets for tutorial, standard, and busy replay shapes.
+- Added scripted training scenarios with fixed incident profiles, spawn locations, timing, seeds, and debrief metadata.
+- Added a web start selector for replayable training scenarios while preserving random seeded shifts.
+- Expanded Tampere sample data with another station, more units, and additional residential, venue, and commercial spawn locations.
+- Added automatic fire alarm and fall injury incident profiles with report, duplicate report, escalation, and windshield templates.
+- Improved validation for scenario references, localization, timing order, report delay ranges, and profile/location compatibility.
+- Added regression coverage for scenario loading, validation, deterministic scenario starts, and debrief scenario metadata.
 
 ## Open Implementation Planning Question
 

@@ -1,0 +1,19 @@
+id: busy_evening
+localizationKey: training.busy_evening.name
+descriptionKey: training.busy_evening.description
+difficultyPreset: busy
+seed: training-busy-evening
+startTimeSeconds: 0
+incidents:
+  - profileId: fall_injury
+    locationId: ratina_mall
+    createdAt: 0
+    reportDelaySeconds: [0, 0]
+  - profileId: chest_pain
+    locationId: hervanta_apartment_1
+    createdAt: 240
+    reportDelaySeconds: [30, 30]
+  - profileId: apartment_fire
+    locationId: tesoma_apartment_1
+    createdAt: 540
+    reportDelaySeconds: [60, 60]

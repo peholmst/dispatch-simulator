@@ -157,6 +157,14 @@ export const scoringProfileSchema = z.object({
   })
 });
 
+export const difficultyPresetSchema = z.object({
+  id: idSchema,
+  localizationKey: localizationKeySchema,
+  incidentCount: z.number().int().positive(),
+  incidentSpacingSeconds: z.number().int().nonnegative(),
+  descriptionKey: localizationKeySchema.optional()
+});
+
 const reportEntrySchema = z.object({
   key: localizationKeySchema,
   weight: z.number().positive().optional().default(1),
@@ -239,10 +247,26 @@ export const incidentProfileSchema = z.object({
   })
 });
 
+export const trainingScenarioSchema = z.object({
+  id: idSchema,
+  localizationKey: localizationKeySchema,
+  descriptionKey: localizationKeySchema.optional(),
+  difficultyPreset: idSchema,
+  seed: z.string().min(1),
+  startTimeSeconds: z.number().int().nonnegative().optional().default(0),
+  incidents: z.array(z.object({
+    profileId: idSchema,
+    locationId: idSchema.optional(),
+    createdAt: z.number().int().nonnegative(),
+    reportDelaySeconds: secondsRangeSchema.optional()
+  })).min(1)
+});
+
 export const localeSchema = z.record(z.string().min(1), z.string());
 
 export type Capability = z.infer<typeof capabilitySchema>;
 export type DispatchCode = z.infer<typeof dispatchCodeSchema>;
+export type DifficultyPreset = z.infer<typeof difficultyPresetSchema>;
 export type Hospital = z.infer<typeof hospitalSchema>;
 export type IncidentProfile = z.infer<typeof incidentProfileSchema>;
 export type Locale = z.infer<typeof localeSchema>;
@@ -254,11 +278,13 @@ export type ResponsePlan = z.infer<typeof responsePlanSchema>;
 export type ScoringProfile = z.infer<typeof scoringProfileSchema>;
 export type Station = z.infer<typeof stationSchema>;
 export type SpawnLocation = z.infer<typeof spawnLocationSchema>;
+export type TrainingScenario = z.infer<typeof trainingScenarioSchema>;
 
 export type CapabilityMap = z.infer<typeof capabilityMapSchema>;
 
 export const schemas = {
   capability: capabilitySchema,
+  difficultyPreset: difficultyPresetSchema,
   dispatchCode: dispatchCodeSchema,
   hospital: hospitalSchema,
   incidentProfile: incidentProfileSchema,
@@ -270,7 +296,8 @@ export const schemas = {
   responsePlan: responsePlanSchema,
   scoringProfile: scoringProfileSchema,
   station: stationSchema,
-  spawnLocation: spawnLocationSchema
+  spawnLocation: spawnLocationSchema,
+  trainingScenario: trainingScenarioSchema
 };
 
 export function resolveLocalizationKey(prefix: string, key: string): string {

@@ -1,0 +1,11 @@
+id: first_medical_call
+localizationKey: training.first_medical_call.name
+descriptionKey: training.first_medical_call.description
+difficultyPreset: tutorial
+seed: training-first-medical
+startTimeSeconds: 0
+incidents:
+  - profileId: chest_pain
+    locationId: central_square_venue
+    createdAt: 0
+    reportDelaySeconds: [0, 0]

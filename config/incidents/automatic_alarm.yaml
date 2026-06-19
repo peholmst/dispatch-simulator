@@ -1,0 +1,65 @@
+id: automatic_alarm
+schemaVersion: 1
+localizationPrefix: incident.automatic_alarm
+displayNameKey: .name
+initialReportDelaySeconds: [0, 120]
+spawn:
+  locationTypes:
+    - commercial_building
+    - public_venue
+  weight: 7
+reports:
+  initial:
+    - key: .reports.initial.panel_alarm
+      weight: 3
+    - key: .reports.initial.smell_of_smoke
+      weight: 1
+  duplicate:
+    - key: .reports.duplicate.staff_evacuating
+      delaySeconds: [180, 420]
+      weight: 1
+classification:
+  acceptableCodes:
+    - "103"
+    - "401"
+  idealCodes:
+    - "103"
+  acceptablePriorities:
+    - B
+    - C
+  idealPriorities:
+    - C
+stages:
+  - id: alarm_only
+    startsAt: 0
+    controlRequires:
+      fire_suppression: 10
+    controlDesires:
+      command: 1
+    containmentRequires: {}
+    containmentDesires: {}
+    firstArrivalReportKey: .reports.windshield.alarm_only
+    commitment:
+      afterControlSeconds: [180, 420]
+  - id: smoke_found
+    startsAt: 600
+    transition:
+      probability: 0.25
+    controlRequires:
+      fire_suppression: 10
+      smoke_divers: 3
+    controlDesires:
+      command: 1
+    containmentRequires:
+      fire_suppression: 10
+    containmentDesires: {}
+    firstArrivalReportKey: .reports.windshield.smoke_found
+    escalationReportKey: .reports.escalated.smoke_found
+    commitment:
+      afterControlSeconds: [300, 600]
+commitment:
+  afterControlSeconds: [180, 420]
+emsTransport:
+  mode: none
+scoring:
+  outcomeProfile: building_fire

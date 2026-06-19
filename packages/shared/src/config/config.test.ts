@@ -10,8 +10,19 @@ describe("configuration loading and validation", () => {
     const config = await loadConfig();
 
     expect(config.region.id).toBe("tampere");
-    expect(config.incidents.map((incident) => incident.id).sort()).toEqual(["apartment_fire", "chest_pain"]);
-    expect(config.resources).toHaveLength(8);
+    expect(config.incidents.map((incident) => incident.id).sort()).toEqual([
+      "apartment_fire",
+      "automatic_alarm",
+      "chest_pain",
+      "fall_injury"
+    ]);
+    expect(config.difficultyPresets.map((preset) => preset.id).sort()).toEqual(["busy", "standard", "tutorial"]);
+    expect(config.trainingScenarios.map((scenario) => scenario.id).sort()).toEqual([
+      "busy_evening",
+      "first_medical_call",
+      "smoke_then_fire"
+    ]);
+    expect(config.resources).toHaveLength(10);
     expect(config.responsePlans).toHaveLength(9);
   });
 
@@ -105,6 +116,38 @@ describe("configuration loading and validation", () => {
       expect.objectContaining({
         severity: "error",
         message: "Response plan 402-B cannot be fulfilled with dispatchable regional resources"
+      })
+    ]));
+  });
+
+  it("reports training scenario playability issues", async () => {
+    const config = cloneConfig(await loadConfig());
+    const scenario = config.trainingScenarios.find((candidate) => candidate.id === "smoke_then_fire")!;
+    scenario.difficultyPreset = "unknown";
+    scenario.incidents[0]!.profileId = "missing_profile";
+    scenario.incidents[0]!.locationId = "hervanta_apartment_1";
+    scenario.incidents[0]!.createdAt = 60;
+    scenario.incidents[0]!.reportDelaySeconds = [60, 10];
+    scenario.incidents[1]!.createdAt = 10;
+
+    const result = validateConfig(config, { strict: true });
+
+    expect(result.issues).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        severity: "error",
+        message: "Training scenario smoke_then_fire references unknown difficulty preset unknown"
+      }),
+      expect.objectContaining({
+        severity: "error",
+        message: "Training scenario smoke_then_fire incident 1 references unknown incident profile missing_profile"
+      }),
+      expect.objectContaining({
+        severity: "error",
+        message: "Training scenario smoke_then_fire incident 1 reportDelaySeconds range start must be <= end"
+      }),
+      expect.objectContaining({
+        severity: "error",
+        message: "Training scenario smoke_then_fire incident 2 starts before previous scenario incident"
       })
     ]));
   });

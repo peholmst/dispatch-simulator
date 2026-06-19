@@ -21,7 +21,30 @@ region.tampere: Tampere
 station.station_10: Station 10
 station.station_11: Station 11
 station.station_12: Station 12
+station.station_13: Station 13
 hospital.tays_acuta: TAYS Acuta
+
+difficulty.tutorial.name: Tutorial
+difficulty.tutorial.description: One incident with forgiving timing for learning the workflow.
+difficulty.standard.name: Standard
+difficulty.standard.description: Two incidents with enough overlap to require prioritization.
+difficulty.busy.name: Busy
+difficulty.busy.description: Three incidents with tighter spacing and resource contention.
+
+training.first_medical_call.name: First medical call
+training.first_medical_call.description: Practice receiving, classifying, and dispatching a straightforward EMS incident.
+training.smoke_then_fire.name: Smoke then fire
+training.smoke_then_fire.description: Start with an alarm investigation, then handle a confirmed building fire.
+training.busy_evening.name: Busy evening
+training.busy_evening.description: Manage overlapping EMS and fire calls across the region.
+
+incident.automatic_alarm.name: Automatic fire alarm
+incident.automatic_alarm.reports.initial.panel_alarm: Alarm company reports an automatic fire alarm from a commercial property.
+incident.automatic_alarm.reports.initial.smell_of_smoke: Staff report the fire alarm is sounding and there may be a smell of smoke near a utility room.
+incident.automatic_alarm.reports.duplicate.staff_evacuating: Staff confirm evacuation is underway and ask whether more units are responding.
+incident.automatic_alarm.reports.windshield.alarm_only: First unit reports alarm sounding, no visible smoke from outside.
+incident.automatic_alarm.reports.windshield.smoke_found: First unit reports light smoke inside and begins investigation.
+incident.automatic_alarm.reports.escalated.smoke_found: Light smoke has been found inside the building; upgrade response requested.
 
 incident.apartment_fire.name: Apartment fire
 incident.apartment_fire.reports.initial.smoke_in_stairwell: Caller reports smoke in an apartment stairwell. People may still be inside.
@@ -37,3 +60,11 @@ incident.chest_pain.reports.initial.shortness_of_breath: Caller is short of brea
 incident.chest_pain.reports.windshield.stable: Ambulance on scene reports patient conscious and stable, preparing assessment.
 incident.chest_pain.reports.windshield.deteriorating: Ambulance on scene reports patient condition deteriorating and requests advanced support.
 incident.chest_pain.reports.escalated.deteriorating: Patient condition has worsened; rapid transport is needed.
+
+incident.fall_injury.name: Fall injury
+incident.fall_injury.reports.initial.elderly_fall: Caller reports an elderly person has fallen and cannot stand without help.
+incident.fall_injury.reports.initial.public_fall: Caller reports a person fell in a public area and has hip pain.
+incident.fall_injury.reports.duplicate.pain_worse: Caller says the patient's pain is worsening and they feel faint.
+incident.fall_injury.reports.windshield.stable: Ambulance on scene reports patient alert with isolated limb pain.
+incident.fall_injury.reports.windshield.worsening_pain: Ambulance on scene reports worsening pain and requests transport.
+incident.fall_injury.reports.escalated.worsening_pain: Patient symptoms have worsened; transport priority has increased.

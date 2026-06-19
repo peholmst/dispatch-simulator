@@ -23,6 +23,7 @@ import {
 
 interface StartBody {
   seed?: string;
+  scenarioId?: string;
 }
 
 interface AdvanceBody {
@@ -56,6 +57,8 @@ type SocketClient = {
 interface CompletedShiftSummary {
   id: string;
   seed: string;
+  scenarioId?: string;
+  difficultyPresetId?: string;
   configVersion: string;
   regionVersion: string;
   startedAt: number;
@@ -70,6 +73,8 @@ function summaryFromDebrief(debrief: ShiftDebrief): CompletedShiftSummary {
   return {
     id: `${debrief.seed}-${debrief.finishedAt}`,
     seed: debrief.seed,
+    scenarioId: debrief.scenarioId,
+    difficultyPresetId: debrief.difficultyPresetId,
     configVersion: debrief.configVersion,
     regionVersion: debrief.regionVersion,
     startedAt: debrief.startedAt,
@@ -113,6 +118,7 @@ export async function createServer() {
 
   function publicState() {
     return {
+      config,
       shift,
       debrief: shift?.status === "finished" ? createDebrief(shift) : undefined,
       completedShiftSummaries
@@ -140,6 +146,7 @@ export async function createServer() {
   app.post<{ Body: StartBody }>("/shift/start", async (request) => {
     shift = startShift(config, {
       seed: request.body?.seed?.trim() || `demo-${Date.now()}`,
+      scenarioId: request.body?.scenarioId,
       startTimeSeconds: 0
     });
     broadcast();

@@ -45,6 +45,23 @@ describe("simulation shift vertical slice", () => {
     expect(withReport.timeline.filter((event) => event.type === "report_received")).toHaveLength(2);
   });
 
+  it("starts scripted training scenarios with fixed incidents and metadata", async () => {
+    const config = await loadConfig(process.cwd());
+    const first = startShift(config, { seed: "training-smoke-fire", scenarioId: "smoke_then_fire" });
+    const second = startShift(config, { seed: "training-smoke-fire", scenarioId: "smoke_then_fire" });
+
+    expect(first.incidents).toEqual(second.incidents);
+    expect(first.scenarioId).toBe("smoke_then_fire");
+    expect(first.difficultyPresetId).toBe("standard");
+    expect(first.incidents.map((incident) => incident.profileId)).toEqual(["automatic_alarm", "apartment_fire"]);
+    expect(first.incidents.map((incident) => incident.locationId)).toEqual(["koskipuisto_office", "kaleva_apartment_1"]);
+    expect(first.incidents.map((incident) => incident.reportDueAt)).toEqual([0, 390]);
+
+    const debrief = createDebrief(finishShift(first));
+    expect(debrief.scenarioId).toBe("smoke_then_fire");
+    expect(debrief.difficultyPresetId).toBe("standard");
+  });
+
   it("delivers deterministic duplicate reports from incident profiles", async () => {
     const config = withOnlyIncident(await loadConfig(process.cwd()), "apartment_fire");
     const started = startShift(config, { seed: "duplicate-report", startTimeSeconds: 0 });

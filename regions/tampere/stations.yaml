@@ -16,3 +16,9 @@
   coordinates:
     lat: 61.4505
     lon: 23.8502
+- id: station_13
+  localizationKey: station.station_13
+  address: Tesomankatu 4, Tampere
+  coordinates:
+    lat: 61.5077
+    lon: 23.6286

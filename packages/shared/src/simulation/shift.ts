@@ -6,7 +6,8 @@ import {
   type LoadedConfig,
   type Resource,
   type ResourceType,
-  type ScoringProfile
+  type ScoringProfile,
+  type TrainingScenario
 } from "../config/index.js";
 import { suggestDispatch } from "../dispatch/suggest.js";
 import { pointAlongRoute, type Coordinates } from "./geometry.js";
@@ -77,6 +78,12 @@ function matchesSpawn(profile: IncidentProfile, location: LoadedConfig["spawnLoc
     exclude.every((tag) => !location.regionTags.includes(tag));
 }
 
+interface IncidentCreationOverrides {
+  profile?: IncidentProfile;
+  locationId?: string;
+  reportDelaySeconds?: [number, number];
+}
+
 function createDuplicateReports(
   profile: IncidentProfile,
   config: LoadedConfig,
@@ -97,12 +104,18 @@ function createIncident(
   config: LoadedConfig,
   options: StartShiftOptions,
   incidentNumber: number,
-  createdAt: number
+  createdAt: number,
+  overrides: IncidentCreationOverrides = {}
 ): IncidentSimulationState {
   const random = createRandomStream(`${options.seed}:incident:${incidentNumber}`);
-  const profile = random.pickWeighted(config.incidents, (incident) => incident.spawn.weight);
+  const profile = overrides.profile ?? random.pickWeighted(config.incidents, (incident) => incident.spawn.weight);
   const spawnCandidates = config.spawnLocations.filter((location) => matchesSpawn(profile, location));
-  const spawnLocation = random.pickWeighted(spawnCandidates, () => 1);
+  const spawnLocation = overrides.locationId
+    ? spawnCandidates.find((location) => location.id === overrides.locationId)
+    : random.pickWeighted(spawnCandidates, () => 1);
+  if (!spawnLocation) {
+    throw new Error(`No spawn location available for incident profile ${profile.id}`);
+  }
   const report = random.pickWeighted(profile.reports.initial, (entry) => entry.weight);
   const initialStage = profile.stages[0]!;
   const escalationStage = profile.stages[1];
@@ -110,7 +123,7 @@ function createIncident(
   const stageTransport = initialStage.emsTransport ?? profile.emsTransport;
   const emsTransportRequired = stageTransport.mode === "required" ||
     (stageTransport.mode === "possible" && random.next() < stageTransport.probability);
-  const reportDueAt = createdAt + rangeValue(profile.initialReportDelaySeconds, random);
+  const reportDueAt = createdAt + rangeValue(overrides.reportDelaySeconds ?? profile.initialReportDelaySeconds, random);
 
   return {
     id: `incident_${incidentNumber}`,
@@ -133,7 +146,33 @@ function createIncident(
   };
 }
 
+function createScenarioIncidents(
+  config: LoadedConfig,
+  options: StartShiftOptions,
+  scenario: TrainingScenario
+): IncidentSimulationState[] {
+  return scenario.incidents.map((scenarioIncident, index) => {
+    const profile = config.incidents.find((candidate) => candidate.id === scenarioIncident.profileId);
+    if (!profile) {
+      throw new Error(`Training scenario ${scenario.id} references missing incident profile ${scenarioIncident.profileId}`);
+    }
+    return createIncident(config, options, index + 1, scenarioIncident.createdAt, {
+      profile,
+      locationId: scenarioIncident.locationId,
+      reportDelaySeconds: scenarioIncident.reportDelaySeconds
+    });
+  });
+}
+
 function createIncidents(config: LoadedConfig, options: StartShiftOptions): IncidentSimulationState[] {
+  if (options.scenarioId) {
+    const scenario = config.trainingScenarios.find((candidate) => candidate.id === options.scenarioId);
+    if (!scenario) {
+      throw new Error(`Unknown training scenario ${options.scenarioId}`);
+    }
+    return createScenarioIncidents(config, { ...options, seed: options.seed || scenario.seed }, scenario);
+  }
+
   const startTime = options.startTimeSeconds ?? 0;
   const incidentCount = options.incidentCount ?? 1;
   const incidentSpacingSeconds = options.incidentSpacingSeconds ?? 900;
@@ -170,18 +209,31 @@ function createUnits(config: LoadedConfig): Record<string, UnitSimulationState> 
 }
 
 export function startShift(config: LoadedConfig, options: StartShiftOptions): ShiftState {
-  const now = options.startTimeSeconds ?? 0;
+  const scenario = options.scenarioId
+    ? config.trainingScenarios.find((candidate) => candidate.id === options.scenarioId)
+    : undefined;
+  if (options.scenarioId && !scenario) {
+    throw new Error(`Unknown training scenario ${options.scenarioId}`);
+  }
+  const difficultyPresetId = scenario?.difficultyPreset;
+  const now = options.startTimeSeconds ?? scenario?.startTimeSeconds ?? 0;
+  const seed = options.seed || scenario?.seed || "demo-shift";
   const state: ShiftState = {
-    seed: options.seed,
+    seed,
+    scenarioId: scenario?.id,
+    difficultyPresetId,
     clock: { now, mode: "running", speed: 1 },
     status: "active",
     config,
-    incidents: createIncidents(config, options),
+    incidents: createIncidents(config, { ...options, seed, startTimeSeconds: now }),
     units: createUnits(config),
     timeline: []
   };
 
-  addEvent(state, { type: "shift_started", message: `Shift started with seed ${options.seed}` });
+  addEvent(state, {
+    type: "shift_started",
+    message: scenario ? `Training scenario ${scenario.id} started with seed ${seed}` : `Shift started with seed ${seed}`
+  });
   return advanceSimulation(state, 0);
 }
 
@@ -1027,6 +1079,8 @@ export function createDebrief(state: ShiftState): ShiftDebrief {
 
   return {
     seed: state.seed,
+    scenarioId: state.scenarioId,
+    difficultyPresetId: state.difficultyPresetId,
     configVersion: "config-v1",
     regionVersion: `${state.config.region.id}-v1`,
     startedAt,

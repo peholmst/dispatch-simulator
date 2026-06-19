@@ -1,0 +1,15 @@
+- id: tutorial
+  localizationKey: difficulty.tutorial.name
+  descriptionKey: difficulty.tutorial.description
+  incidentCount: 1
+  incidentSpacingSeconds: 900
+- id: standard
+  localizationKey: difficulty.standard.name
+  descriptionKey: difficulty.standard.description
+  incidentCount: 2
+  incidentSpacingSeconds: 600
+- id: busy
+  localizationKey: difficulty.busy.name
+  descriptionKey: difficulty.busy.description
+  incidentCount: 3
+  incidentSpacingSeconds: 300

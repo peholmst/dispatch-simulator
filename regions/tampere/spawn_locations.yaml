@@ -19,3 +19,34 @@
     lon: 23.7608
   regionTags:
     - urban
+- id: ratina_mall
+  locationType: public_venue
+  coordinates:
+    lat: 61.4932
+    lon: 23.7644
+  regionTags:
+    - urban
+    - commercial
+- id: koskipuisto_office
+  locationType: commercial_building
+  coordinates:
+    lat: 61.5003
+    lon: 23.7669
+  regionTags:
+    - urban
+    - commercial
+- id: tesoma_apartment_1
+  locationType: residential_building
+  coordinates:
+    lat: 61.5066
+    lon: 23.6302
+  regionTags:
+    - suburban
+- id: linnainmaa_market
+  locationType: commercial_building
+  coordinates:
+    lat: 61.5192
+    lon: 23.8481
+  regionTags:
+    - suburban
+    - commercial

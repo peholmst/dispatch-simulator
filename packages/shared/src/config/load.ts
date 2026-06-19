@@ -3,6 +3,7 @@ import path from "node:path";
 import YAML from "yaml";
 import {
   capabilitySchema,
+  difficultyPresetSchema,
   dispatchCodeSchema,
   hospitalSchema,
   incidentProfileSchema,
@@ -15,7 +16,9 @@ import {
   scoringProfileSchema,
   stationSchema,
   spawnLocationSchema,
+  trainingScenarioSchema,
   type Capability,
+  type DifficultyPreset,
   type DispatchCode,
   type Hospital,
   type IncidentProfile,
@@ -27,11 +30,13 @@ import {
   type ResponsePlan,
   type ScoringProfile,
   type Station,
-  type SpawnLocation
+  type SpawnLocation,
+  type TrainingScenario
 } from "./schemas.js";
 
 export interface LoadedConfig {
   capabilities: Capability[];
+  difficultyPresets: DifficultyPreset[];
   dispatchCodes: DispatchCode[];
   hospitals: Hospital[];
   incidents: IncidentProfile[];
@@ -44,6 +49,7 @@ export interface LoadedConfig {
   scoringProfiles: ScoringProfile[];
   stations: Station[];
   spawnLocations: SpawnLocation[];
+  trainingScenarios: TrainingScenario[];
 }
 
 async function readYamlFile(filePath: string): Promise<unknown> {
@@ -105,6 +111,24 @@ async function readIncidentProfiles(configDir: string): Promise<IncidentProfile[
   );
 }
 
+async function readTrainingScenarios(configDir: string): Promise<TrainingScenario[]> {
+  const scenarioDir = path.join(configDir, "training_scenarios");
+  const files = (await readdir(scenarioDir))
+    .filter((file) => file.endsWith(".yaml") || file.endsWith(".yml"))
+    .sort();
+
+  return Promise.all(
+    files.map(async (file) => {
+      const scenario = trainingScenarioSchema.parse(await readYamlFile(path.join(scenarioDir, file)));
+      const expectedId = path.basename(file, path.extname(file));
+      if (scenario.id !== expectedId) {
+        throw new Error(`Training scenario ${file} has id ${scenario.id}, expected ${expectedId}`);
+      }
+      return scenario;
+    })
+  );
+}
+
 export async function loadConfig(rootDir = process.cwd(), regionId = "tampere", localeId = "en"): Promise<LoadedConfig> {
   const resolvedRootDir = await findConfigRoot(rootDir);
   const configDir = path.join(resolvedRootDir, "config");
@@ -113,6 +137,7 @@ export async function loadConfig(rootDir = process.cwd(), regionId = "tampere", 
 
   const [
     capabilities,
+    difficultyPresets,
     dispatchCodes,
     hospitals,
     incidents,
@@ -124,9 +149,11 @@ export async function loadConfig(rootDir = process.cwd(), regionId = "tampere", 
     responsePlans,
     scoringProfiles,
     stations,
-    spawnLocations
+    spawnLocations,
+    trainingScenarios
   ] = await Promise.all([
     readYamlArray(path.join(configDir, "capabilities.yaml"), (value) => capabilitySchema.parse(value)),
+    readYamlArray(path.join(configDir, "difficulty_presets.yaml"), (value) => difficultyPresetSchema.parse(value)),
     readYamlArray(path.join(configDir, "dispatch_codes.yaml"), (value) => dispatchCodeSchema.parse(value)),
     readYamlArray(path.join(regionDir, "hospitals.yaml"), (value) => hospitalSchema.parse(value)),
     readIncidentProfiles(configDir),
@@ -138,11 +165,13 @@ export async function loadConfig(rootDir = process.cwd(), regionId = "tampere", 
     readYamlArray(path.join(configDir, "response_plans.yaml"), (value) => responsePlanSchema.parse(value)),
     readYamlArray(path.join(configDir, "scoring_profiles.yaml"), (value) => scoringProfileSchema.parse(value)),
     readYamlArray(path.join(regionDir, "stations.yaml"), (value) => stationSchema.parse(value)),
-    readYamlArray(path.join(regionDir, "spawn_locations.yaml"), (value) => spawnLocationSchema.parse(value))
+    readYamlArray(path.join(regionDir, "spawn_locations.yaml"), (value) => spawnLocationSchema.parse(value)),
+    readTrainingScenarios(configDir)
   ]);
 
   return {
     capabilities,
+    difficultyPresets,
     dispatchCodes,
     hospitals,
     incidents,
@@ -154,6 +183,7 @@ export async function loadConfig(rootDir = process.cwd(), regionId = "tampere", 
     responsePlans,
     scoringProfiles,
     stations,
-    spawnLocations
+    spawnLocations,
+    trainingScenarios
   };
 }

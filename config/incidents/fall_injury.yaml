@@ -1,0 +1,72 @@
+id: fall_injury
+schemaVersion: 1
+localizationPrefix: incident.fall_injury
+displayNameKey: .name
+initialReportDelaySeconds: [0, 90]
+spawn:
+  locationTypes:
+    - residential_building
+    - public_venue
+  weight: 6
+reports:
+  initial:
+    - key: .reports.initial.elderly_fall
+      weight: 2
+    - key: .reports.initial.public_fall
+      weight: 1
+  duplicate:
+    - key: .reports.duplicate.pain_worse
+      delaySeconds: [240, 600]
+      weight: 1
+classification:
+  acceptableCodes:
+    - "704"
+  idealCodes:
+    - "704"
+  acceptablePriorities:
+    - B
+    - C
+  idealPriorities:
+    - C
+stages:
+  - id: stable
+    startsAt: 0
+    controlRequires:
+      ems: 1
+    controlDesires: {}
+    containmentRequires: {}
+    containmentDesires: {}
+    firstArrivalReportKey: .reports.windshield.stable
+    emsTransport:
+      mode: possible
+      probability: 0.5
+      requiresCapability: ems
+      destinationType: hospital
+      handoffSeconds: [600, 1200]
+  - id: worsening_pain
+    startsAt: 900
+    transition:
+      probability: 0.35
+    controlRequires:
+      ems: 1
+    controlDesires:
+      ems_advanced: 1
+    containmentRequires: {}
+    containmentDesires: {}
+    firstArrivalReportKey: .reports.windshield.worsening_pain
+    escalationReportKey: .reports.escalated.worsening_pain
+    emsTransport:
+      mode: required
+      requiresCapability: ems
+      destinationType: hospital
+      handoffSeconds: [600, 1200]
+commitment:
+  afterControlSeconds: [300, 600]
+emsTransport:
+  mode: possible
+  probability: 0.5
+  requiresCapability: ems
+  destinationType: hospital
+  handoffSeconds: [600, 1200]
+scoring:
+  outcomeProfile: medical
