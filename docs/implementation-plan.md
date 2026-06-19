@@ -46,22 +46,32 @@ Completed:
   - advance to arrival/control.
   - finish shift.
   - debrief reveals hidden truth and key timings.
+- In-app browser verification of the playable UI at `http://127.0.0.1:5173`:
+  - start fresh shift with seed `verify-m0-loop`.
+  - advance to report delivery.
+  - select `402-B`.
+  - classify the incident.
+  - use assisted dispatch.
+  - advance until units arrive and the incident is controlled.
+  - finish the shift.
+  - confirm the debrief renders `Apartment fire`, classified `402-B`, controlled at `06:00`, first arrival at `06:00`.
 - Verified commands:
   - `pnpm validate:config`
   - `pnpm test`
   - `pnpm build`
   - API smoke flow against local Fastify server.
+  - In-app browser flow against the local Vite/Fastify stack.
 
 Current implementation focus:
 
-- Harden the playable vertical slice with browser-level tests and UX tuning.
+- Add automated browser regression coverage and tune the vertical-slice UX.
 - Keep routing mocked or straight-line until the map/routing milestone.
 
 ## Milestone 0: Thin Playable Vertical Slice
 
 Goal: prove the core game loop before full GIS/routing/content work.
 
-Status: functionally complete for the first playable slice.
+Status: complete and browser-verified for the first playable slice.
 
 Acceptance criteria:
 
@@ -144,8 +154,8 @@ Completed groundwork:
 
 Remaining Milestone 0 hardening:
 
-- Add Playwright end-to-end tests for the browser flow. In-app browser automation was attempted during implementation, but the local browser runtime failed to attach due to a host sandbox `CreateProcessAsUserW failed: 5` error.
-- Improve UI polish after real browser testing.
+- Add Playwright end-to-end tests for the browser flow so the verified shift loop is repeatable in CI/local automation.
+- Improve UI polish based on the browser-verified vertical slice.
 
 ## Milestone 1: Config and Validation
 
