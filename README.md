@@ -5,7 +5,7 @@ Emergency dispatch simulation game prototype focused on a thin playable vertical
 ## Requirements
 
 - Node.js 20 or newer
-- pnpm
+- Corepack-enabled pnpm
 
 The project is configured as a pnpm workspace.
 
@@ -13,7 +13,7 @@ The project is configured as a pnpm workspace.
 
 From the repository root:
 
-```powershell
+```sh
 corepack prepare pnpm@9.15.4 --activate
 corepack pnpm install
 ```
@@ -22,7 +22,7 @@ corepack pnpm install
 
 The sample Tampere configuration can be validated with:
 
-```powershell
+```sh
 corepack pnpm validate:config
 ```
 
@@ -32,17 +32,27 @@ This loads YAML from `config/`, `regions/tampere/`, and `locales/en.yaml`, then 
 
 Run all current tests:
 
-```powershell
+```sh
 corepack pnpm test
 ```
 
 The current tests cover config loading/validation, training scenarios, the simulation loop, scoring/debriefs, routing movement, and the assisted dispatch suggestion algorithm.
 
+Run the Playwright end-to-end tests:
+
+```sh
+corepack pnpm exec playwright install chromium
+corepack pnpm exec playwright install-deps chromium
+corepack pnpm test:e2e
+```
+
+The `install-deps` step installs Chromium system libraries on Linux/WSL and may require `sudo`.
+
 ## Build
 
 Compile the TypeScript packages:
 
-```powershell
+```sh
 corepack pnpm build
 ```
 
@@ -52,14 +62,14 @@ Build output is written to package `dist/` folders, which are ignored by Git. Th
 
 Start the API server:
 
-```powershell
-pnpm dev:server
+```sh
+corepack pnpm dev:server
 ```
 
 In another terminal, start the web app:
 
-```powershell
-pnpm dev:web
+```sh
+corepack pnpm dev:web
 ```
 
 Then open `http://127.0.0.1:5173`. The Vite dev server proxies `/api` and `/api/ws` to the Fastify server on `http://127.0.0.1:3000`.
@@ -89,10 +99,11 @@ docs/          Design and implementation planning documents.
 
 ## Useful Commands
 
-```powershell
+```sh
 corepack pnpm validate:config
 corepack pnpm test
+corepack pnpm test:e2e
 corepack pnpm build
-pnpm dev:server
-pnpm dev:web
+corepack pnpm dev:server
+corepack pnpm dev:web
 ```
