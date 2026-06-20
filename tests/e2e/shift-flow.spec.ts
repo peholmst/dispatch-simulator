@@ -34,3 +34,23 @@ test("plays the first dispatch loop and shows debrief details", async ({ page })
   await expect(page.getByText("Escalation").first()).toBeVisible();
   await expect(page.getByText("Duplicate Handling").first()).toBeVisible();
 });
+
+test("shows stacked units on the map and selects units from the chooser", async ({ page }) => {
+  await page.goto("/");
+
+  await page.getByLabel("Training scenario").selectOption("smoke_then_fire");
+  await page.getByRole("button", { name: "Start" }).click();
+
+  const unitRow = page.locator(".unit-row", { hasText: "RPI101" });
+  await unitRow.getByRole("button", { name: "Show on map" }).click();
+
+  const popup = page.locator(".map-popup");
+  await expect(popup).toBeVisible();
+  await expect(popup).toContainText("Units at location");
+  await expect(popup).toContainText("S10");
+  await expect(popup).toContainText("RPI101");
+
+  await popup.getByRole("button", { name: /RPI101/ }).click();
+  await expect(page.getByText("1 selected")).toBeVisible();
+  await expect(unitRow).toHaveClass(/selected/);
+});

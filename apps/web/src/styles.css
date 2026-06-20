@@ -201,7 +201,7 @@ h3 {
   border-bottom: 1px solid #edf0ec;
   display: grid;
   gap: 8px;
-  grid-template-columns: 22px 70px 1fr 85px;
+  grid-template-columns: 22px 70px 1fr 85px 112px;
   min-height: 38px;
 }
 
@@ -228,6 +228,12 @@ h3 {
   font-weight: 800;
 }
 
+.show-unit {
+  font-size: 12px;
+  min-height: 28px;
+  padding: 0 8px;
+}
+
 .map-canvas {
   background: #e7ebe4;
   border: 1px solid #cbd3ca;
@@ -239,6 +245,69 @@ h3 {
 
 .maplibregl-canvas {
   outline: none;
+}
+
+.map-popup {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.map-popup strong {
+  color: #17211b;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.map-popup-list {
+  display: grid;
+  gap: 4px;
+}
+
+.map-popup-row {
+  align-items: center;
+  background: #f8faf7;
+  border: 1px solid #edf0ec;
+  border-radius: 6px;
+  color: #17211b;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  min-height: 30px;
+  padding: 5px 7px;
+}
+
+button.map-popup-row {
+  cursor: pointer;
+  font-weight: 800;
+  text-align: left;
+}
+
+.map-popup-row.station {
+  border-left: 5px solid #315d8a;
+}
+
+.map-popup-row.unit {
+  border-left: 5px solid #1f6f5b;
+}
+
+.map-popup-row.incident {
+  border-left: 5px solid #c94f39;
+}
+
+.map-popup-row.hospital {
+  border-left: 5px solid #7b4ba0;
+}
+
+.map-popup-row.highlighted {
+  box-shadow: 0 0 0 3px #f6d84d;
+}
+
+.map-popup-row small {
+  color: #5a665f;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
 }
 
 .timeline ol {
