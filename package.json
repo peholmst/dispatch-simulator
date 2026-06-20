@@ -5,12 +5,12 @@
   "packageManager": "pnpm@9.15.4",
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @dispatch-simulator/shared build && pnpm --filter @dispatch-simulator/server build && pnpm --filter @dispatch-simulator/web build",
-    "dev:server": "pnpm --filter @dispatch-simulator/server dev",
-    "dev:web": "pnpm --filter @dispatch-simulator/web dev",
-    "test": "vitest run --root packages/shared && vitest run --passWithNoTests --root apps/server && vitest run --passWithNoTests --root apps/web",
+    "build": "corepack pnpm --filter @dispatch-simulator/shared build && corepack pnpm --filter @dispatch-simulator/server build && corepack pnpm --filter @dispatch-simulator/web build",
+    "dev:server": "corepack pnpm --filter @dispatch-simulator/server dev",
+    "dev:web": "corepack pnpm --filter @dispatch-simulator/web dev",
+    "test": "corepack pnpm --filter @dispatch-simulator/shared test && corepack pnpm --filter @dispatch-simulator/server test && corepack pnpm --filter @dispatch-simulator/web test",
     "test:e2e": "playwright test",
-    "validate:config": "packages\\shared\\node_modules\\.bin\\tsx.CMD packages/shared/src/cli/validate-config.ts"
+    "validate:config": "corepack pnpm --filter @dispatch-simulator/shared validate:config"
   },
   "devDependencies": {
     "@playwright/test": "^1.61.0",

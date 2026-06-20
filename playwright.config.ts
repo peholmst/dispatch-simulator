@@ -8,15 +8,21 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "cmd /c \"set PORT=34100&& node_modules\\.bin\\tsx.CMD src/index.ts\"",
-      cwd: "apps/server",
+      command: "corepack pnpm --filter @dispatch-simulator/server dev",
+      cwd: ".",
+      env: {
+        PORT: "34100"
+      },
       url: "http://127.0.0.1:34100/health",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000
     },
     {
-      command: "cmd /c \"set API_PORT=34100&& node_modules\\.bin\\vite.CMD --host 127.0.0.1 --port 56174 --strictPort\"",
-      cwd: "apps/web",
+      command: "corepack pnpm --filter @dispatch-simulator/web exec vite --host 127.0.0.1 --port 56174 --strictPort",
+      cwd: ".",
+      env: {
+        API_PORT: "34100"
+      },
       url: "http://127.0.0.1:56174",
       reuseExistingServer: !process.env.CI,
       timeout: 60_000

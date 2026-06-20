@@ -1,4 +1,5 @@
 import react from "@vitejs/plugin-react";
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vite";
 
 const apiPort = process.env.API_PORT ?? "3000";
@@ -7,6 +8,11 @@ const apiWsTarget = `ws://127.0.0.1:${apiPort}/ws`;
 
 export default defineConfig({
   plugins: [react()],
+  resolve: {
+    alias: {
+      "@dispatch-simulator/shared": fileURLToPath(new URL("../../packages/shared/src/index.ts", import.meta.url))
+    }
+  },
   server: {
     proxy: {
       "/api/ws": {
