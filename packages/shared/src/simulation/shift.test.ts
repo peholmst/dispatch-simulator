@@ -125,6 +125,7 @@ describe("simulation shift vertical slice", () => {
     expect(debrief.incidents[0]!.dimensions.map((dimension) => dimension.id)).toEqual([
       "classification",
       "priority",
+      "duplicateHandling",
       "dispatchAdequacy",
       "timeToControl",
       "escalationPrevention",
@@ -133,6 +134,8 @@ describe("simulation shift vertical slice", () => {
     ]);
     expect(debrief.incidents[0]!.selectedCode).toBe("704");
     expect(debrief.incidents[0]!.controlledAt).toBe(arrivalAt);
+    expect(debrief.incidents[0]!.controlRequires).toBeTruthy();
+    expect(debrief.incidents[0]!.escalationPath.length).toBeGreaterThan(0);
     expect(debrief.timeline.at(-1)!.type).toBe("shift_finished");
   });
 
@@ -250,9 +253,13 @@ describe("simulation shift vertical slice", () => {
     state = advanceSimulation(state, Math.max(duplicateReport.dueAt - state.clock.now, 0));
     state = linkReport(state, { incidentId: first.id, reportId: duplicateReport.id });
     expect(state.incidents.find((incident) => incident.id === first.id)!.linkedReportIds).toContain(duplicateReport.id);
+    let debrief = createDebrief(finishShift(state));
+    expect(debrief.incidents[0]!.dimensions.find((dimension) => dimension.id === "duplicateHandling")!.score).toBeGreaterThan(0);
 
     state = splitReport(state, { incidentId: first.id, reportId: duplicateReport.id });
     expect(state.incidents.some((incident) => incident.splitFromReportId === duplicateReport.id)).toBe(true);
     expect(state.timeline.some((event) => event.type === "report_split")).toBe(true);
+    debrief = createDebrief(finishShift(state));
+    expect(debrief.incidents[0]!.dimensions.find((dimension) => dimension.id === "duplicateHandling")!.score).toBe(0);
   });
 });

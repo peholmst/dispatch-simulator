@@ -65,6 +65,11 @@ function formatTime(seconds: number | undefined): string {
   return `${minutes}:${remaining}`;
 }
 
+function formatCapabilities(capabilities: Record<string, number>): string {
+  const entries = Object.entries(capabilities).filter(([, value]) => value > 0);
+  return entries.length === 0 ? "none" : entries.map(([capability, value]) => `${capability} ${value}`).join(", ");
+}
+
 function UnitRow({ unit, selected, onToggle }: {
   unit: UnitSimulationState;
   selected: boolean;
@@ -155,6 +160,13 @@ function DebriefPanel({ debrief, summaries }: {
               <span>Controlled {formatTime(item.controlledAt)}</span>
               <span>Escalated {formatTime(item.escalatedAt)}</span>
               <span>Transport {item.emsTransportRequired ? formatTime(item.emsTransportCompletedAt) : "not required"}</span>
+            </div>
+            <div className="debrief-details">
+              <span>Control {formatCapabilities(item.controlRequires)}</span>
+              <span>Containment {formatCapabilities(item.containmentRequires)}</span>
+              <span>Desired {formatCapabilities(item.controlDesires)}</span>
+              <span>Escalation {item.escalationPath.map((stage) => `${stage.stageId}${stage.occurred ? "*" : ""}`).join(" -> ")}</span>
+              <span>{item.deteriorationReasons.length > 0 ? item.deteriorationReasons.join(" ") : "No avoidable deterioration recorded."}</span>
             </div>
             <div className="dimensions">
               {item.dimensions.map((dimension) => (
@@ -378,6 +390,7 @@ function App() {
   const incident = shift?.incidents.find((candidate) => candidate.id === activeIncidentId) ?? shift?.incidents[0];
   const dispatchCode = shift?.config.dispatchCodes.find((candidate) => candidate.id === code);
   const validPriorities = dispatchCode?.validPriorities ?? [];
+  const paused = shift?.clock.mode === "paused";
   const units = useMemo(() => Object.values(shift?.units ?? {}), [shift]);
   const selectedUnitStates = selectedUnits.map((unitId) => shift?.units[unitId]).filter((unit): unit is UnitSimulationState => Boolean(unit));
   const canManualDispatch = Boolean(incident && selectedUnitStates.some((unit) => unit.status === "available_at_station" || unit.status === "available_mobile"));
@@ -448,6 +461,19 @@ function App() {
           setSelectedUnits([]);
           return next;
         })}>Start</button>
+        <button disabled={!shift || shift.status === "finished"} onClick={() => run(() => post("/api/shift/clock", { paused: !paused }))}>
+          {paused ? "Resume" : "Pause"}
+        </button>
+        <select
+          disabled={!shift || shift.status === "finished"}
+          value={shift?.clock.speed ?? 1}
+          onChange={(event) => run(() => post("/api/shift/clock", { speed: Number(event.target.value) }))}
+          aria-label="Simulation speed"
+        >
+          {[0.5, 1, 2, 4, 8].map((speedOption) => (
+            <option key={speedOption} value={speedOption}>{speedOption}x</option>
+          ))}
+        </select>
         <button disabled={!shift || shift.status === "finished"} onClick={() => run(() => post("/api/shift/advance", { seconds: 60 }))}>+1 min</button>
         <button disabled={!shift || shift.status === "finished"} onClick={() => run(() => post("/api/shift/finish"))}>Finish</button>
       </section>
@@ -470,10 +496,10 @@ function App() {
                 <span>Escalated {formatTime(incident.escalatedAt)}</span>
               </div>
               <div className="classify">
-                <select value={code} onChange={(event) => setCode(event.target.value)}>
+                <select aria-label="Dispatch code" value={code} onChange={(event) => setCode(event.target.value)}>
                   {shift!.config.dispatchCodes.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
                 </select>
-                <select value={priority} onChange={(event) => setPriority(event.target.value)}>
+                <select aria-label="Priority" value={priority} onChange={(event) => setPriority(event.target.value)}>
                   {validPriorities.map((item) => <option key={item} value={item}>{item}</option>)}
                 </select>
                 <button onClick={() => run(() => post("/api/shift/classify", { incidentId: incident.id, code, priority }))}>Classify</button>

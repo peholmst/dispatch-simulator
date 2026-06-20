@@ -1,6 +1,6 @@
 import websocket from "@fastify/websocket";
 import Fastify from "fastify";
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { access, mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   advanceSimulation,
@@ -15,6 +15,8 @@ import {
   recallUnits,
   releaseHeldUnits,
   rerouteUnits,
+  setPaused,
+  setSpeed,
   splitReport,
   startShift,
   type ShiftDebrief,
@@ -28,6 +30,11 @@ interface StartBody {
 
 interface AdvanceBody {
   seconds?: number;
+}
+
+interface ClockBody {
+  paused?: boolean;
+  speed?: number;
 }
 
 interface ClassifyBody {
@@ -86,13 +93,40 @@ function summaryFromDebrief(debrief: ShiftDebrief): CompletedShiftSummary {
   };
 }
 
+async function pathExists(candidate: string): Promise<boolean> {
+  try {
+    await access(candidate);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function findWorkspaceRoot(start: string): Promise<string> {
+  let current = path.resolve(start);
+  while (true) {
+    const hasConfig = await pathExists(path.join(current, "config"));
+    const hasRegions = await pathExists(path.join(current, "regions"));
+    if (hasConfig && hasRegions) {
+      return current;
+    }
+
+    const parent = path.dirname(current);
+    if (parent === current) {
+      throw new Error(`Could not find workspace root from ${start}`);
+    }
+    current = parent;
+  }
+}
+
 export async function createServer() {
   const app = Fastify({ logger: true });
   await app.register(websocket);
 
-  const config = await loadConfig(process.cwd());
+  const workspaceRoot = await findWorkspaceRoot(process.cwd());
+  const config = await loadConfig(workspaceRoot);
   const clients = new Set<SocketClient>();
-  const summaryPath = path.join(process.cwd(), "apps", "server", "data", "shift-summaries.json");
+  const summaryPath = path.join(workspaceRoot, "apps", "server", "data", "shift-summaries.json");
   let shift: ShiftState | undefined;
   let completedShiftSummaries: CompletedShiftSummary[] = [];
 
@@ -155,6 +189,19 @@ export async function createServer() {
 
   app.post<{ Body: AdvanceBody }>("/shift/advance", async (request) => {
     shift = advanceSimulation(requireShift(), request.body?.seconds ?? 60);
+    broadcast();
+    return publicState();
+  });
+
+  app.post<{ Body: ClockBody }>("/shift/clock", async (request) => {
+    let next = requireShift();
+    if (request.body.paused !== undefined) {
+      next = setPaused(next, request.body.paused);
+    }
+    if (request.body.speed !== undefined) {
+      next = setSpeed(next, request.body.speed);
+    }
+    shift = next;
     broadcast();
     return publicState();
   });

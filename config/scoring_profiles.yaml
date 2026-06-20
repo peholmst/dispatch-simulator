@@ -12,6 +12,7 @@
   dimensions:
     classification: 20
     priority: 10
+    duplicateHandling: 5
     dispatchAdequacy: 25
     timeToControl: 20
     escalationPrevention: 15
@@ -31,6 +32,7 @@
   dimensions:
     classification: 20
     priority: 15
+    duplicateHandling: 5
     dispatchAdequacy: 20
     timeToControl: 15
     escalationPrevention: 5

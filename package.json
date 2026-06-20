@@ -9,9 +9,11 @@
     "dev:server": "pnpm --filter @dispatch-simulator/server dev",
     "dev:web": "pnpm --filter @dispatch-simulator/web dev",
     "test": "vitest run --root packages/shared && vitest run --passWithNoTests --root apps/server && vitest run --passWithNoTests --root apps/web",
+    "test:e2e": "playwright test",
     "validate:config": "packages\\shared\\node_modules\\.bin\\tsx.CMD packages/shared/src/cli/validate-config.ts"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@types/node": "^20.17.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.1"

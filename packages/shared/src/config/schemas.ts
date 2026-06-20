@@ -149,6 +149,7 @@ export const scoringProfileSchema = z.object({
   dimensions: z.object({
     classification: z.number().nonnegative(),
     priority: z.number().nonnegative(),
+    duplicateHandling: z.number().nonnegative().optional().default(0),
     dispatchAdequacy: z.number().nonnegative(),
     timeToControl: z.number().nonnegative(),
     escalationPrevention: z.number().nonnegative(),

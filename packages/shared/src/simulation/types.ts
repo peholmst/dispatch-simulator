@@ -155,12 +155,24 @@ export interface DebriefIncident {
   emsTransportCompletedAt?: number;
   commitmentClearsAt?: number;
   assignedUnitIds: string[];
+  controlRequires: CapabilityMap;
+  controlDesires: CapabilityMap;
+  containmentRequires: CapabilityMap;
+  containmentDesires: CapabilityMap;
+  escalationPath: Array<{
+    stageId: string;
+    startsAt: number;
+    occurred: boolean;
+    reportKey?: string;
+  }>;
+  deteriorationReasons: string[];
 }
 
 export interface ScoreDimension {
   id:
     | "classification"
     | "priority"
+    | "duplicateHandling"
     | "dispatchAdequacy"
     | "timeToControl"
     | "escalationPrevention"

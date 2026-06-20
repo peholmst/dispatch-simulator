@@ -279,20 +279,28 @@ function sumCapabilities(capabilities: CapabilityMap): number {
 }
 
 function capabilityCoverage(required: CapabilityMap, provided: CapabilityMap): number {
-  const requiredTotal = sumCapabilities(required);
-  if (requiredTotal === 0) {
+  const requirements = Object.entries(required).filter(([, value]) => value > 0);
+  if (requirements.length === 0) {
     return 1;
   }
 
-  const covered = Object.entries(required).reduce((total, [capability, requiredValue]) => {
-    return total + Math.min(requiredValue, provided[capability] ?? 0);
+  const covered = requirements.reduce((total, [capability, requiredValue]) => {
+    return total + Math.min((provided[capability] ?? 0) / requiredValue, 1);
   }, 0);
-  return covered / requiredTotal;
+  return covered / requirements.length;
 }
 
-function assignedCapabilities(state: ShiftState, incident: IncidentSimulationState): CapabilityMap {
+function assignedCapabilities(
+  state: ShiftState,
+  incident: IncidentSimulationState,
+  includeUnit: (unit: UnitSimulationState) => boolean = () => true
+): CapabilityMap {
   const provided: CapabilityMap = {};
   for (const unitId of incident.assignedUnitIds) {
+    const unit = state.units[unitId];
+    if (!unit || !includeUnit(unit)) {
+      continue;
+    }
     const resource = state.config.resources.find((candidate) => candidate.id === unitId);
     if (!resource) {
       continue;
@@ -348,7 +356,7 @@ function scoreClassification(incident: IncidentSimulationState, profile: Inciden
   const credit = selected && profile.classification.idealCodes.includes(selected)
     ? 1
     : selected && profile.classification.acceptableCodes.includes(selected)
-      ? 0.6
+      ? 0.7
       : 0;
   const explanation = selected
     ? `Selected ${selected}; ideal ${profile.classification.idealCodes.join("/")}, acceptable ${profile.classification.acceptableCodes.join("/")}.`
@@ -361,12 +369,42 @@ function scorePriority(incident: IncidentSimulationState, profile: IncidentProfi
   const credit = selected && profile.classification.idealPriorities.includes(selected)
     ? 1
     : selected && profile.classification.acceptablePriorities.includes(selected)
-      ? 0.6
+      ? 0.7
       : 0;
   const explanation = selected
     ? `Selected ${selected}; ideal ${profile.classification.idealPriorities.join("/")}, acceptable ${profile.classification.acceptablePriorities.join("/")}.`
     : `No priority selected; ideal ${profile.classification.idealPriorities.join("/")}.`;
   return scoreDimension("priority", "Priority", scoring.dimensions.priority, credit, explanation);
+}
+
+function scoreDuplicateHandling(
+  state: ShiftState,
+  incident: IncidentSimulationState,
+  scoring: ScoringProfile
+): ScoreDimension {
+  const deliveredDuplicates = incident.duplicateReports.filter((report) => report.deliveredAt !== undefined);
+  if (deliveredDuplicates.length === 0) {
+    return scoreDimension(
+      "duplicateHandling",
+      "Duplicate Handling",
+      scoring.dimensions.duplicateHandling,
+      1,
+      "No duplicate reports were delivered."
+    );
+  }
+
+  const linked = deliveredDuplicates.filter((report) => incident.linkedReportIds.includes(report.id)).length;
+  const incorrectlySplit = deliveredDuplicates.filter((report) => {
+    return state.incidents.some((candidate) => candidate.splitFromReportId === report.id);
+  }).length;
+  const credit = Math.max(0, (linked - incorrectlySplit) / deliveredDuplicates.length);
+  return scoreDimension(
+    "duplicateHandling",
+    "Duplicate Handling",
+    scoring.dimensions.duplicateHandling,
+    credit,
+    `${linked}/${deliveredDuplicates.length} duplicate report(s) linked; ${incorrectlySplit} split away from the hidden incident.`
+  );
 }
 
 function scoreDispatchAdequacy(
@@ -376,9 +414,14 @@ function scoreDispatchAdequacy(
   provided: CapabilityMap
 ): ScoreDimension {
   const stage = profile.stages[incident.stageIndex]!;
-  const credit = capabilityCoverage(stage.controlRequires, provided);
+  const requiredCredit = capabilityCoverage(stage.controlRequires, provided);
+  const desiredCredit = hasAnyRequirement(stage.controlDesires)
+    ? capabilityCoverage(stage.controlDesires, provided)
+    : requiredCredit;
+  const credit = requiredCredit * (0.8 + (0.2 * desiredCredit));
   const missing = missingCapabilities(stage.controlRequires, provided);
-  const explanation = `Assigned ${formatCapabilities(provided)}; required ${formatCapabilities(stage.controlRequires)}; missing ${formatCapabilities(missing)}.`;
+  const desiredMissing = missingCapabilities(stage.controlDesires, provided);
+  const explanation = `Initial dispatch provided ${formatCapabilities(provided)}; required ${formatCapabilities(stage.controlRequires)}; missing ${formatCapabilities(missing)}; desired missing ${formatCapabilities(desiredMissing)}.`;
   return scoreDimension("dispatchAdequacy", "Dispatch Adequacy", scoring.dimensions.dispatchAdequacy, credit, explanation);
 }
 
@@ -430,9 +473,13 @@ function scoreOverDispatch(
   provided: CapabilityMap
 ): ScoreDimension {
   const stage = profile.stages[incident.stageIndex]!;
-  const requiredTotal = sumCapabilities(stage.controlRequires);
+  const baseline: CapabilityMap = { ...stage.controlRequires };
+  for (const [capability, value] of Object.entries(stage.controlDesires)) {
+    baseline[capability] = (baseline[capability] ?? 0) + value;
+  }
+  const requiredTotal = sumCapabilities(baseline);
   const surplus = Object.entries(provided).reduce((total, [capability, value]) => {
-    return total + Math.max(0, value - (stage.controlRequires[capability] ?? 0));
+    return total + Math.max(0, value - (baseline[capability] ?? 0));
   }, 0);
   const surplusRatio = requiredTotal === 0 ? 0 : surplus / requiredTotal;
   const credit = surplusRatio <= scoring.overDispatch.freeSurplusRatio
@@ -440,6 +487,39 @@ function scoreOverDispatch(
     : linearCredit(surplusRatio, scoring.overDispatch.freeSurplusRatio, scoring.overDispatch.zeroCreditSurplusRatio);
   const explanation = `Surplus capability ratio ${surplusRatio.toFixed(2)}; free up to ${scoring.overDispatch.freeSurplusRatio}, zero at ${scoring.overDispatch.zeroCreditSurplusRatio}.`;
   return scoreDimension("overDispatch", "Over-Dispatch", scoring.dimensions.overDispatch, credit, explanation);
+}
+
+function initialDispatchCapabilities(state: ShiftState, incident: IncidentSimulationState): CapabilityMap {
+  if (incident.firstArrivalAt === undefined) {
+    return {};
+  }
+
+  return assignedCapabilities(state, incident, (unit) => {
+    return unit.dispatchedAt !== undefined && unit.dispatchedAt <= incident.firstArrivalAt!;
+  });
+}
+
+function escalationPath(profile: IncidentProfile, incident: IncidentSimulationState): DebriefIncident["escalationPath"] {
+  return profile.stages.map((stage, index) => ({
+    stageId: stage.id,
+    startsAt: stage.startsAt,
+    occurred: index <= incident.stageIndex,
+    reportKey: stage.escalationReportKey
+  }));
+}
+
+function deteriorationReasons(incident: IncidentSimulationState): string[] {
+  const reasons: string[] = [];
+  if (incident.escalatedAt !== undefined) {
+    reasons.push(`Escalated at ${Math.round(incident.escalatedAt)}s before control.`);
+  }
+  if (incident.controlledAt === undefined) {
+    reasons.push("Incident was not controlled before shift finish.");
+  }
+  if (incident.emsTransportRequired && incident.emsTransportCompletedAt === undefined) {
+    reasons.push("Required EMS transport was not completed.");
+  }
+  return reasons;
 }
 
 function resourceTypeFor(config: LoadedConfig, resource: Resource): ResourceType {
@@ -1032,10 +1112,12 @@ export function createDebrief(state: ShiftState): ShiftDebrief {
     if (!scoring) {
       throw new Error(`Unknown scoring profile ${profile.scoring.outcomeProfile}`);
     }
-    const provided = assignedCapabilities(state, incident);
+    const stage = profile.stages[incident.stageIndex]!;
+    const provided = initialDispatchCapabilities(state, incident);
     const dimensions = [
       scoreClassification(incident, profile, scoring),
       scorePriority(incident, profile, scoring),
+      scoreDuplicateHandling(state, incident, scoring),
       scoreDispatchAdequacy(incident, profile, scoring, provided),
       scoreTimeToControl(incident, scoring),
       scoreEscalationPrevention(incident, scoring),
@@ -1063,7 +1145,13 @@ export function createDebrief(state: ShiftState): ShiftDebrief {
       emsTransportRequired: incident.emsTransportRequired,
       emsTransportCompletedAt: incident.emsTransportCompletedAt,
       commitmentClearsAt: incident.commitmentClearsAt,
-      assignedUnitIds: [...incident.assignedUnitIds]
+      assignedUnitIds: [...incident.assignedUnitIds],
+      controlRequires: { ...stage.controlRequires },
+      controlDesires: { ...stage.controlDesires },
+      containmentRequires: { ...stage.containmentRequires },
+      containmentDesires: { ...stage.containmentDesires },
+      escalationPath: escalationPath(profile, incident),
+      deteriorationReasons: deteriorationReasons(incident)
     };
   });
   const weightedScore = roundScore(incidents.reduce((total, incident) => {
