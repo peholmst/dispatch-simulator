@@ -36,6 +36,8 @@ interface CompletedShiftSummary {
   incidentCount: number;
 }
 
+type MainTab = "incidents" | "timeline";
+
 const apiHeaders = { "Content-Type": "application/json" };
 
 async function post<T>(path: string, body?: unknown): Promise<T> {
@@ -659,6 +661,7 @@ function App() {
   const [priority, setPriority] = useState("B");
   const [selectedUnits, setSelectedUnits] = useState<string[]>([]);
   const [activeIncidentId, setActiveIncidentId] = useState<string>();
+  const [activeTab, setActiveTab] = useState<MainTab>("incidents");
   const [mapFocusRequest, setMapFocusRequest] = useState<UnitMapFocusRequest>();
   const [error, setError] = useState<string>();
 
@@ -804,105 +807,138 @@ function App() {
 
       {error ? <div className="error">{error}</div> : null}
 
-      <section className="grid">
-        <div className="panel incident">
-          <h2>Incidents</h2>
-          {shift ? <IncidentQueue incidents={shift.incidents} activeIncidentId={incident?.id} onSelect={setActiveIncidentId} /> : null}
-          {incident ? (
-            <>
-              <div className={`status ${incident.status}`}>{incident.status.replaceAll("_", " ")}</div>
-              <p className="report">{incident.reportedAt === undefined ? `Report due ${formatTime(incident.reportDueAt)}` : incident.reportText}</p>
-              <div className="incident-address">
-                <strong>{incidentLocation?.address ?? formatCoordinates(incident.location)}</strong>
-                <span>{incidentLocation?.locationType.replaceAll("_", " ") ?? incident.locationId}</span>
+      <section className="tab-sheet">
+        <nav className="main-tabs" role="tablist" aria-label="Main workspace">
+          <button
+            type="button"
+            role="tab"
+            id="tab-incidents"
+            aria-controls="panel-incidents"
+            aria-selected={activeTab === "incidents"}
+            className={activeTab === "incidents" ? "active" : ""}
+            onClick={() => setActiveTab("incidents")}
+          >
+            Incidents
+          </button>
+          <button
+            type="button"
+            role="tab"
+            id="tab-timeline"
+            aria-controls="panel-timeline"
+            aria-selected={activeTab === "timeline"}
+            className={activeTab === "timeline" ? "active" : ""}
+            onClick={() => setActiveTab("timeline")}
+          >
+            Timeline
+          </button>
+        </nav>
+
+        <div className="tab-content">
+          {activeTab === "incidents" ? (
+            <section id="panel-incidents" className="grid" role="tabpanel" aria-labelledby="tab-incidents">
+              <div className="panel incident">
+                <h2>Incidents</h2>
+                {shift ? <IncidentQueue incidents={shift.incidents} activeIncidentId={incident?.id} onSelect={setActiveIncidentId} /> : null}
+                {incident ? (
+                  <>
+                    <div className={`status ${incident.status}`}>{incident.status.replaceAll("_", " ")}</div>
+                    <p className="report">{incident.reportedAt === undefined ? `Report due ${formatTime(incident.reportDueAt)}` : incident.reportText}</p>
+                    <div className="incident-address">
+                      <strong>{incidentLocation?.address ?? formatCoordinates(incident.location)}</strong>
+                      <span>{incidentLocation?.locationType.replaceAll("_", " ") ?? incident.locationId}</span>
+                    </div>
+                    <p>{incident.windshieldReport ?? "Awaiting first-arrival report"}</p>
+                    <div className="facts">
+                      <span>Stage {incident.stageId}</span>
+                      <span>Contained {formatTime(incident.containedAt)}</span>
+                      <span>Controlled {formatTime(incident.controlledAt)}</span>
+                      <span>Escalated {formatTime(incident.escalatedAt)}</span>
+                    </div>
+                    <div className="classify">
+                      <select aria-label="Dispatch code" value={code} onChange={(event) => setCode(event.target.value)}>
+                        {shift!.config.dispatchCodes.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
+                      </select>
+                      <select aria-label="Priority" value={priority} onChange={(event) => setPriority(event.target.value)}>
+                        {validPriorities.map((item) => <option key={item} value={item}>{item}</option>)}
+                      </select>
+                      <button onClick={() => run(() => post("/api/shift/classify", { incidentId: incident.id, code, priority }))}>Classify</button>
+                      <button onClick={() => run(() => post("/api/shift/dispatch-suggested", { incidentId: incident.id }))}>Assist</button>
+                    </div>
+                    <div className="reports">
+                      <h3>Reports</h3>
+                      <ReportRow
+                        report={{ id: "initial", dueAt: incident.reportDueAt, deliveredAt: incident.reportedAt, text: incident.reportText ?? "" }}
+                        linked
+                        split
+                        onLink={() => undefined}
+                        onSplit={() => undefined}
+                      />
+                      {(incident.duplicateReports ?? []).map((report) => (
+                        <ReportRow
+                          key={report.id}
+                          report={report}
+                          linked={(incident.linkedReportIds ?? []).includes(report.id)}
+                          split={Boolean(shift?.incidents.some((item) => item.splitFromReportId === report.id))}
+                          onLink={() => run(() => post("/api/shift/link-report", { incidentId: incident.id, reportId: report.id }))}
+                          onSplit={() => run(() => post("/api/shift/split-report", { incidentId: incident.id, reportId: report.id }))}
+                        />
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p>Start a shift to receive the first report.</p>
+                )}
               </div>
-              <p>{incident.windshieldReport ?? "Awaiting first-arrival report"}</p>
-              <div className="facts">
-                <span>Stage {incident.stageId}</span>
-                <span>Contained {formatTime(incident.containedAt)}</span>
-                <span>Controlled {formatTime(incident.controlledAt)}</span>
-                <span>Escalated {formatTime(incident.escalatedAt)}</span>
-              </div>
-              <div className="classify">
-                <select aria-label="Dispatch code" value={code} onChange={(event) => setCode(event.target.value)}>
-                  {shift!.config.dispatchCodes.map((item) => <option key={item.id} value={item.id}>{item.id}</option>)}
-                </select>
-                <select aria-label="Priority" value={priority} onChange={(event) => setPriority(event.target.value)}>
-                  {validPriorities.map((item) => <option key={item} value={item}>{item}</option>)}
-                </select>
-                <button onClick={() => run(() => post("/api/shift/classify", { incidentId: incident.id, code, priority }))}>Classify</button>
-                <button onClick={() => run(() => post("/api/shift/dispatch-suggested", { incidentId: incident.id }))}>Assist</button>
-                <button disabled={!canManualDispatch} onClick={() => run(() => post("/api/shift/dispatch", { incidentId: incident.id, unitIds: selectedUnits }))}>Dispatch</button>
-                <button disabled={!canHold} onClick={() => run(() => post("/api/shift/hold", { unitIds: selectedUnits }))}>Hold</button>
-                <button disabled={!canReleaseHeld} onClick={() => run(() => post("/api/shift/release-held", { unitIds: selectedUnits }))}>Release</button>
-                <button disabled={!canRecall} onClick={() => run(() => post("/api/shift/recall", { unitIds: selectedUnits }))}>Recall</button>
-                <button disabled={!incident || !canRecall} onClick={() => run(() => post("/api/shift/reroute", { incidentId: incident.id, unitIds: selectedUnits }))}>Reroute</button>
-              </div>
-              <div className="reports">
-                <h3>Reports</h3>
-                <ReportRow
-                  report={{ id: "initial", dueAt: incident.reportDueAt, deliveredAt: incident.reportedAt, text: incident.reportText ?? "" }}
-                  linked
-                  split
-                  onLink={() => undefined}
-                  onSplit={() => undefined}
+
+              <div className="map">
+                <MapView
+                  shift={shift}
+                  activeIncidentId={incident?.id}
+                  selectedUnitIds={selectedUnits}
+                  onToggleUnit={toggleUnit}
+                  focusRequest={mapFocusRequest}
                 />
-                {(incident.duplicateReports ?? []).map((report) => (
-                  <ReportRow
-                    key={report.id}
-                    report={report}
-                    linked={(incident.linkedReportIds ?? []).includes(report.id)}
-                    split={Boolean(shift?.incidents.some((item) => item.splitFromReportId === report.id))}
-                    onLink={() => run(() => post("/api/shift/link-report", { incidentId: incident.id, reportId: report.id }))}
-                    onSplit={() => run(() => post("/api/shift/split-report", { incidentId: incident.id, reportId: report.id }))}
-                  />
-                ))}
               </div>
-            </>
+
+              <div className="panel units">
+                <h2>Units</h2>
+                <div className="unit-summary">
+                  <span>{selectedUnits.length} selected</span>
+                  <button disabled={selectedUnits.length === 0} onClick={() => setSelectedUnits([])}>Clear</button>
+                </div>
+                <div className="unit-actions">
+                  <button disabled={!canManualDispatch} onClick={() => incident && run(() => post("/api/shift/dispatch", { incidentId: incident.id, unitIds: selectedUnits }))}>Dispatch</button>
+                  <button disabled={!canHold} onClick={() => run(() => post("/api/shift/hold", { unitIds: selectedUnits }))}>Hold</button>
+                  <button disabled={!canReleaseHeld} onClick={() => run(() => post("/api/shift/release-held", { unitIds: selectedUnits }))}>Release</button>
+                  <button disabled={!canRecall} onClick={() => run(() => post("/api/shift/recall", { unitIds: selectedUnits }))}>Recall</button>
+                  <button disabled={!incident || !canRecall} onClick={() => incident && run(() => post("/api/shift/reroute", { incidentId: incident.id, unitIds: selectedUnits }))}>Reroute</button>
+                </div>
+                <div className="unit-list">
+                  {units.map((unit) => (
+                    <UnitRow
+                      key={unit.id}
+                      unit={unit}
+                      selected={selectedUnits.includes(unit.id)}
+                      onToggle={() => toggleUnit(unit.id)}
+                      now={shift?.clock.now}
+                      onShow={() => setMapFocusRequest({ unitId: unit.id, token: Date.now() })}
+                    />
+                  ))}
+                </div>
+              </div>
+            </section>
           ) : (
-            <p>Start a shift to receive the first report.</p>
+            <section id="panel-timeline" className="timeline timeline-tab" role="tabpanel" aria-labelledby="tab-timeline">
+              <ol>
+                {(shift?.timeline ?? []).slice().reverse().map((event, index) => (
+                  <li key={`${event.at}-${event.type}-${index}`}>
+                    <time>{formatTime(event.at)}</time>
+                    <span>{event.message}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
           )}
-        </div>
-
-        <div className="panel map">
-          <h2>Spatial View</h2>
-          <MapView
-            shift={shift}
-            activeIncidentId={incident?.id}
-            selectedUnitIds={selectedUnits}
-            onToggleUnit={toggleUnit}
-            focusRequest={mapFocusRequest}
-          />
-        </div>
-
-        <div className="panel units">
-          <h2>Units</h2>
-          <div className="unit-summary">
-            <span>{selectedUnits.length} selected</span>
-            <button disabled={selectedUnits.length === 0} onClick={() => setSelectedUnits([])}>Clear</button>
-          </div>
-          {units.map((unit) => (
-            <UnitRow
-              key={unit.id}
-              unit={unit}
-              selected={selectedUnits.includes(unit.id)}
-              onToggle={() => toggleUnit(unit.id)}
-              now={shift?.clock.now}
-              onShow={() => setMapFocusRequest({ unitId: unit.id, token: Date.now() })}
-            />
-          ))}
-        </div>
-
-        <div className="panel timeline">
-          <h2>Timeline</h2>
-          <ol>
-            {(shift?.timeline ?? []).slice().reverse().map((event, index) => (
-              <li key={`${event.at}-${event.type}-${index}`}>
-                <time>{formatTime(event.at)}</time>
-                <span>{event.message}</span>
-              </li>
-            ))}
-          </ol>
         </div>
       </section>
 
