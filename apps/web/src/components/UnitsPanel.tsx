@@ -1,10 +1,12 @@
-import type { IncidentSimulationState, UnitSimulationState } from "@dispatch-simulator/shared";
+import type { IncidentSimulationState, LoadedConfig, UnitSimulationState } from "@dispatch-simulator/shared";
 import { post } from "../api";
 import type { ApiState, UnitMapFocusRequest } from "../types";
-import { UnitRow } from "./UnitRow";
+import { UnitRow, type UnitAssignmentSummary } from "./UnitRow";
 
-export function UnitsPanel({ units, incident, selectedUnits, now, canManualDispatch, canHold, canReleaseHeld, canRecall, onClearSelection, onToggleUnit, onFocusUnit, run }: {
+export function UnitsPanel({ units, incidents, config, incident, selectedUnits, now, canManualDispatch, canHold, canReleaseHeld, canRecall, onClearSelection, onToggleUnit, onFocusUnit, run }: {
   units: UnitSimulationState[];
+  incidents: IncidentSimulationState[];
+  config?: LoadedConfig;
   incident?: IncidentSimulationState;
   selectedUnits: string[];
   now?: number;
@@ -17,6 +19,26 @@ export function UnitsPanel({ units, incident, selectedUnits, now, canManualDispa
   onFocusUnit: (request: UnitMapFocusRequest) => void;
   run: (action: () => Promise<ApiState>) => Promise<void>;
 }) {
+  const incidentsById = new Map(incidents.map((item) => [item.id, item]));
+  const locationsById = new Map((config?.spawnLocations ?? []).map((location) => [location.id, location]));
+
+  function assignmentFor(unit: UnitSimulationState): UnitAssignmentSummary | undefined {
+    if (!unit.incidentId) {
+      return undefined;
+    }
+    const assignedIncident = incidentsById.get(unit.incidentId);
+    if (!assignedIncident) {
+      return undefined;
+    }
+    const location = locationsById.get(assignedIncident.locationId);
+    return {
+      code: assignedIncident.selectedCode ?? "-",
+      priority: assignedIncident.selectedPriority ?? "-",
+      name: assignedIncident.displayName,
+      address: location?.address ?? assignedIncident.locationId
+    };
+  }
+
   return (
     <div className="panel units">
       <h2>Units</h2>
@@ -37,6 +59,7 @@ export function UnitsPanel({ units, incident, selectedUnits, now, canManualDispa
             key={unit.id}
             unit={unit}
             selected={selectedUnits.includes(unit.id)}
+            assignment={assignmentFor(unit)}
             onToggle={() => onToggleUnit(unit.id)}
             now={now}
             onShow={() => onFocusUnit({ unitId: unit.id, token: Date.now() })}

@@ -195,6 +195,8 @@ export function App() {
 
               <UnitsPanel
                 units={units}
+                incidents={shift?.incidents ?? []}
+                config={config}
                 incident={incident}
                 selectedUnits={selectedUnits}
                 now={shift?.clock.now}
