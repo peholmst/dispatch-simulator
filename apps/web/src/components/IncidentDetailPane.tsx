@@ -19,6 +19,9 @@ export function IncidentDetailPane({ shift, incident, incidentLocation, code, pr
   const elapsedSeconds = shift?.clock.now !== undefined && elapsedSince !== undefined
     ? Math.max(0, shift.clock.now - elapsedSince)
     : undefined;
+  const visibleDuplicateReports = (incident?.duplicateReports ?? []).filter((report) => (
+    report.deliveredAt !== undefined || (shift?.clock.now !== undefined && report.dueAt <= shift.clock.now)
+  ));
 
   return (
     <div className="incident-detail-pane">
@@ -64,7 +67,7 @@ export function IncidentDetailPane({ shift, incident, incidentLocation, code, pr
                 onLink={() => undefined}
                 onSplit={() => undefined}
               />
-              {(incident.duplicateReports ?? []).map((report) => (
+              {visibleDuplicateReports.map((report) => (
                 <ReportRow
                   key={report.id}
                   report={report}
@@ -78,7 +81,7 @@ export function IncidentDetailPane({ shift, incident, incidentLocation, code, pr
           </div>
         </>
       ) : (
-        <p>Start a shift to receive the first report.</p>
+        <p>{shift ? "Awaiting next due report." : "Start a shift to receive the first report."}</p>
       )}
     </div>
   );

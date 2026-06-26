@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import type { UnitSimulationState } from "@dispatch-simulator/shared";
+import type { IncidentSimulationState, UnitSimulationState } from "@dispatch-simulator/shared";
 import { post } from "./api";
 import { DebriefPanel } from "./components/DebriefPanel";
 import { IncidentsPanel } from "./components/IncidentsPanel";
@@ -8,6 +8,10 @@ import { TimelinePanel } from "./components/TimelinePanel";
 import { Toolbar } from "./components/Toolbar";
 import { UnitsPanel } from "./components/UnitsPanel";
 import type { ApiState, MainTab, UnitMapFocusRequest } from "./types";
+
+function isIncidentVisible(incident: IncidentSimulationState, now?: number): boolean {
+  return incident.reportedAt !== undefined || (now !== undefined && incident.reportDueAt <= now);
+}
 
 export function App() {
   const [apiState, setApiState] = useState<ApiState>({});
@@ -24,7 +28,11 @@ export function App() {
   const shift = apiState.shift;
   const config = shift?.config ?? apiState.config;
   const scenarios = config?.trainingScenarios ?? [];
-  const incident = shift?.incidents.find((candidate) => candidate.id === activeIncidentId) ?? shift?.incidents[0];
+  const visibleIncidents = useMemo(
+    () => (shift?.incidents ?? []).filter((candidate) => isIncidentVisible(candidate, shift?.clock.now)),
+    [shift]
+  );
+  const incident = visibleIncidents.find((candidate) => candidate.id === activeIncidentId) ?? visibleIncidents[0];
   const incidentLocation = incident
     ? config?.spawnLocations.find((location) => location.id === incident.locationId)
     : undefined;
@@ -107,10 +115,16 @@ export function App() {
   }, [shift?.clock.mode, shift?.status]);
 
   useEffect(() => {
-    if (shift?.incidents.length && (!activeIncidentId || !shift.incidents.some((item) => item.id === activeIncidentId))) {
-      setActiveIncidentId(shift.incidents[0]!.id);
+    if (visibleIncidents.length === 0) {
+      if (activeIncidentId) {
+        setActiveIncidentId(undefined);
+      }
+      return;
     }
-  }, [activeIncidentId, shift]);
+    if (!activeIncidentId || !visibleIncidents.some((item) => item.id === activeIncidentId)) {
+      setActiveIncidentId(visibleIncidents[0]!.id);
+    }
+  }, [activeIncidentId, visibleIncidents]);
 
   return (
     <main className="shell">
@@ -129,7 +143,7 @@ export function App() {
         }}
         onStart={() => run(async () => {
           const next = await post<ApiState>("/api/shift/start", { seed, scenarioId: scenarioId || undefined });
-          setActiveIncidentId(next.shift?.incidents[0]?.id);
+          setActiveIncidentId(undefined);
           setSelectedUnits([]);
           return next;
         })}
@@ -172,6 +186,7 @@ export function App() {
             <section id="panel-incidents" className="grid" role="tabpanel" aria-labelledby="tab-incidents">
               <IncidentsPanel
                 shift={shift}
+                incidents={visibleIncidents}
                 incident={incident}
                 incidentLocation={incidentLocation}
                 code={code}

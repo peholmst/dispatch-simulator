@@ -3,8 +3,9 @@ import type { ApiState } from "../types";
 import { IncidentDetailPane } from "./IncidentDetailPane";
 import { IncidentQueue } from "./IncidentQueue";
 
-export function IncidentsPanel({ shift, incident, incidentLocation, code, priority, validPriorities, onSelectIncident, onCodeChange, onPriorityChange, run }: {
+export function IncidentsPanel({ shift, incidents, incident, incidentLocation, code, priority, validPriorities, onSelectIncident, onCodeChange, onPriorityChange, run }: {
   shift?: ShiftState;
+  incidents: IncidentSimulationState[];
   incident?: IncidentSimulationState;
   incidentLocation?: LoadedConfig["spawnLocations"][number];
   code: string;
@@ -19,7 +20,7 @@ export function IncidentsPanel({ shift, incident, incidentLocation, code, priori
     <div className="panel incident">
       <div className="incident-list-pane">
         <h2>Incidents</h2>
-        {shift ? <IncidentQueue incidents={shift.incidents} activeIncidentId={incident?.id} onSelect={onSelectIncident} /> : null}
+        {shift ? <IncidentQueue incidents={incidents} activeIncidentId={incident?.id} onSelect={onSelectIncident} /> : null}
       </div>
       <IncidentDetailPane
         shift={shift}
