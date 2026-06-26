@@ -326,17 +326,36 @@ function popupContent(features: MapFeature[], options: {
   return container;
 }
 
-function createStationMarkerImage(size = 20): ImageData {
+function createStationMarkerImage(size = 52): ImageData {
   const canvas = document.createElement("canvas");
   canvas.width = size;
   canvas.height = size;
   const context = canvas.getContext("2d")!;
   context.fillStyle = "#315d8a";
   context.strokeStyle = "#ffffff";
-  context.lineWidth = 3;
-  const inset = 3;
+  context.lineWidth = 4;
+  const inset = 4;
+  const markerSize = size - (inset * 2);
+  context.fillRect(inset, inset, markerSize, markerSize);
+  context.strokeRect(inset, inset, markerSize, markerSize);
+  return context.getImageData(0, 0, size, size);
+}
+
+function createIncidentMarkerImage(size = 52): ImageData {
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "#c94f39";
+  context.strokeStyle = "#ffffff";
+  context.lineWidth = 4;
+  context.lineJoin = "round";
+  const inset = 4;
   context.beginPath();
-  context.rect(inset, inset, size - (inset * 2), size - (inset * 2));
+  context.moveTo(size / 2, inset);
+  context.lineTo(size - inset, size - inset);
+  context.lineTo(inset, size - inset);
+  context.closePath();
   context.fill();
   context.stroke();
   return context.getImageData(0, 0, size, size);
@@ -382,6 +401,9 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
       if (!map.hasImage("station-marker")) {
         map.addImage("station-marker", createStationMarkerImage(), { pixelRatio: 2 });
       }
+      if (!map.hasImage("incident-marker")) {
+        map.addImage("incident-marker", createIncidentMarkerImage(), { pixelRatio: 2 });
+      }
       map.addSource("routes", { type: "geojson", data: emptyFeatureCollection() });
       map.addSource("stations", { type: "geojson", data: emptyFeatureCollection() });
       map.addSource("hospitals", { type: "geojson", data: emptyFeatureCollection() });
@@ -420,13 +442,13 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
       });
       map.addLayer({
         id: "incident-markers",
-        type: "circle",
+        type: "symbol",
         source: "incidents",
-        paint: {
-          "circle-color": "#c94f39",
-          "circle-radius": ["case", ["==", ["get", "active"], true], 10, 8],
-          "circle-stroke-color": "#ffffff",
-          "circle-stroke-width": 2
+        layout: {
+          "icon-image": "incident-marker",
+          "icon-size": ["case", ["==", ["get", "active"], true], 1.25, 1],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true
         }
       });
       map.addLayer({
