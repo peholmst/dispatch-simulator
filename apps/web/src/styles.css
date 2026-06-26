@@ -250,7 +250,9 @@ h3 {
 .incident-queue {
   display: grid;
   gap: 3px;
-  margin-bottom: 8px;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .queue-item {
@@ -261,9 +263,10 @@ h3 {
   display: grid;
   font-weight: 600;
   justify-items: start;
-  min-height: 36px;
+  min-height: 46px;
   padding: 5px 7px;
   text-align: left;
+  white-space: normal;
 }
 
 .queue-item.active {
@@ -286,10 +289,37 @@ h3 {
 }
 
 .incident {
+  display: grid;
+  gap: 8px;
   grid-column: 1;
   grid-row: 1;
+  grid-template-columns: 132px minmax(0, 1fr);
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
+}
+
+.incident-list-pane,
+.incident-detail-pane {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.incident-list-pane {
+  border-right: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  padding-right: 8px;
+}
+
+.incident-detail-pane {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-right: 2px;
+}
+
+.incident-detail-summary {
+  flex: 0 0 auto;
 }
 
 .units {
@@ -378,7 +408,18 @@ h3 {
 }
 
 .reports {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
   margin-top: 10px;
+  min-height: 0;
+}
+
+.reports-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding-right: 2px;
 }
 
 .report-row {
@@ -720,6 +761,17 @@ button.map-popup-row {
   .map {
     grid-column: auto;
     grid-row: auto;
+  }
+
+  .incident {
+    grid-template-columns: 1fr;
+  }
+
+  .incident-list-pane {
+    border-right: 0;
+    border-bottom: 1px solid var(--border-soft);
+    max-height: 180px;
+    padding: 0 0 8px;
   }
 
   .main-tabs {
