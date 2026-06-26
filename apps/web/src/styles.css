@@ -322,6 +322,28 @@ h3 {
   flex: 0 0 auto;
 }
 
+.incident-status-line {
+  align-items: center;
+  display: flex;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.incident-status-line .status {
+  margin-bottom: 0;
+}
+
+.incident-elapsed {
+  background: var(--surface-raised);
+  border: 1px solid var(--border-soft);
+  border-radius: 2px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px;
+}
+
 .units {
   display: flex;
   flex-direction: column;
