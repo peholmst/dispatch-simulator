@@ -44,7 +44,7 @@ export function App() {
   const canManualDispatch = Boolean(incident && selectedUnitStates.some((unit) => unit.status === "available_at_station" || unit.status === "available_mobile"));
   const canHold = selectedUnitStates.some((unit) => unit.status === "available_at_station" || unit.status === "available_mobile");
   const canReleaseHeld = selectedUnitStates.some((unit) => unit.status === "held");
-  const canRecall = selectedUnitStates.some((unit) => ["en_route", "on_scene", "committed_on_scene", "recovering"].includes(unit.status));
+  const canRecall = selectedUnitStates.some((unit) => ["dispatched", "en_route", "on_scene", "committed_on_scene", "recovering"].includes(unit.status));
   const toggleUnit = React.useCallback((unitId: string) => {
     setSelectedUnits((current) => (
       current.includes(unitId) ? current.filter((id) => id !== unitId) : [...current, unitId]

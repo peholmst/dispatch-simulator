@@ -13,7 +13,7 @@ export interface DispatchSuggestionInput {
     lon: number;
   };
   unitStates?: Record<string, {
-    status: Resource["initialStatus"] | "held" | "assigned" | "en_route" | "on_scene" | "committed_on_scene" | "recovering";
+    status: Resource["initialStatus"] | "held" | "assigned" | "dispatched" | "en_route" | "on_scene" | "committed_on_scene" | "recovering";
     location?: {
       lat: number;
       lon: number;

@@ -55,6 +55,7 @@ describe("map features", () => {
   it("encodes unit status for map styling", () => {
     expect(unitMapStatus("available_at_station")).toBe("available");
     expect(unitMapStatus("available_mobile")).toBe("available");
+    expect(unitMapStatus("dispatched")).toBe("active");
     expect(unitMapStatus("en_route")).toBe("active");
     expect(unitMapStatus("on_scene")).toBe("active");
     expect(unitMapStatus("held")).toBe("held");

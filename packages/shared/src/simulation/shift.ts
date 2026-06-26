@@ -570,6 +570,16 @@ function updateUnitRouteLocation(unit: UnitSimulationState, at: number): void {
 
 function updateEnRouteLocations(state: ShiftState): void {
   for (const unit of Object.values(state.units)) {
+    if (unit.status === "dispatched" && unit.routeStartedAt !== undefined && state.clock.now >= unit.routeStartedAt) {
+      unit.status = "en_route";
+      addEvent(state, {
+        at: unit.routeStartedAt,
+        type: "unit_rolling",
+        incidentId: unit.incidentId,
+        unitIds: [unit.id],
+        message: `${unit.callSign} started rolling`
+      });
+    }
     updateUnitRouteLocation(unit, state.clock.now);
   }
 }
@@ -875,7 +885,7 @@ export function dispatchUnits(state: ShiftState, command: DispatchCommand): Shif
     }
 
     const plan = travelPlan(next, unit, incident);
-    unit.status = "en_route";
+    unit.status = "dispatched";
     unit.incidentId = incident.id;
     unit.destination = incident.location;
     unit.route = plan.route;
@@ -949,7 +959,7 @@ export function recallUnits(state: ShiftState, unitIds: string[]): ShiftState {
   const recalled: string[] = [];
   for (const unitId of unitIds) {
     const unit = next.units[unitId];
-    if (!unit || !["en_route", "on_scene", "committed_on_scene", "recovering"].includes(unit.status)) {
+    if (!unit || !["dispatched", "en_route", "on_scene", "committed_on_scene", "recovering"].includes(unit.status)) {
       continue;
     }
 

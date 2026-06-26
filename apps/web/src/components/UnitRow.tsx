@@ -17,7 +17,7 @@ export function UnitRow({ unit, selected, assignment, onToggle, onShow, now }: {
   onShow: () => void;
   now?: number;
 }) {
-  const etaSeconds = unit.arrivalAt === undefined || now === undefined
+  const etaSeconds = unit.status !== "en_route" || unit.arrivalAt === undefined || now === undefined
     ? undefined
     : Math.max(0, unit.arrivalAt - now);
   const mapStatus = unitMapStatus(unit.status);

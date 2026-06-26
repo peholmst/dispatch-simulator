@@ -174,6 +174,7 @@ describe("simulation shift vertical slice", () => {
 
     const advancedUnit = state.units.tampere_epi121!;
     const basicUnit = state.units.tampere_epi131!;
+    expect(advancedUnit.status).toBe("dispatched");
     expect(advancedUnit.route).toEqual(expect.objectContaining({
       provider: "straight-line-cache",
       cacheKey: basicUnit.route!.cacheKey
@@ -185,6 +186,11 @@ describe("simulation shift vertical slice", () => {
     expect(afterTurnout.units.tampere_epi121!.locationUpdatedAt).toBe(afterTurnout.clock.now);
     expect(afterTurnout.units.tampere_epi121!.location).not.toEqual(startLocation);
     expect(afterTurnout.units.tampere_epi121!.status).toBe("en_route");
+    expect(afterTurnout.timeline).toContainEqual(expect.objectContaining({
+      at: advancedUnit.routeStartedAt,
+      type: "unit_rolling",
+      unitIds: ["tampere_epi121"]
+    }));
 
     const arrived = advanceSimulation(afterTurnout, advancedUnit.arrivalAt! - afterTurnout.clock.now);
     expect(arrived.units.tampere_epi121!.location).toEqual(incident.location);
