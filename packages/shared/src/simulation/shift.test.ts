@@ -159,7 +159,7 @@ describe("simulation shift vertical slice", () => {
     expect(state.incidents[0]!.assignedUnitIds).toEqual(assigned);
   });
 
-  it("assigns cached routes and updates en-route unit locations on coarse ticks", async () => {
+  it("assigns cached routes and updates en-route unit locations on clock ticks", async () => {
     const config = withOnlyIncident(await loadConfig(process.cwd()), "chest_pain");
     let state = startShift(config, { seed: "routed-movement", startTimeSeconds: 0 });
     const incident = state.incidents[0]!;
@@ -182,7 +182,7 @@ describe("simulation shift vertical slice", () => {
     expect(advancedUnit.routeStartedAt).toBeGreaterThanOrEqual(advancedUnit.dispatchedAt!);
 
     const afterTurnout = advanceSimulation(state, advancedUnit.routeStartedAt! - state.clock.now + 20);
-    expect(afterTurnout.units.tampere_epi121!.locationUpdatedAt).toBe(advancedUnit.routeStartedAt! + 15);
+    expect(afterTurnout.units.tampere_epi121!.locationUpdatedAt).toBe(afterTurnout.clock.now);
     expect(afterTurnout.units.tampere_epi121!.location).not.toEqual(startLocation);
     expect(afterTurnout.units.tampere_epi121!.status).toBe("en_route");
 

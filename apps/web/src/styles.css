@@ -50,6 +50,22 @@ button:disabled {
   padding: 12px;
 }
 
+.toolbar p {
+  color: #5a665f;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.shift-clock {
+  display: block;
+  font-size: 26px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+  line-height: 1.1;
+  margin-top: 3px;
+}
+
 h1,
 h2,
 h3,

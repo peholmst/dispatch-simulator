@@ -28,7 +28,6 @@ import type {
 } from "./types.js";
 
 const averageResponseSpeedMetersPerSecond = 13.9;
-const locationUpdateIntervalSeconds = 15;
 const routingService = createDefaultRoutingService(averageResponseSpeedMetersPerSecond);
 
 function cloneState(state: ShiftState): ShiftState {
@@ -565,10 +564,8 @@ function updateUnitRouteLocation(unit: UnitSimulationState, at: number): void {
   }
 
   const travelDuration = unit.arrivalAt - unit.routeStartedAt;
-  const sampledAt = unit.routeStartedAt +
-    (Math.floor((at - unit.routeStartedAt) / locationUpdateIntervalSeconds) * locationUpdateIntervalSeconds);
-  unit.location = pointAlongRoute(unit.route.geometry, (sampledAt - unit.routeStartedAt) / travelDuration);
-  unit.locationUpdatedAt = sampledAt;
+  unit.location = pointAlongRoute(unit.route.geometry, (at - unit.routeStartedAt) / travelDuration);
+  unit.locationUpdatedAt = at;
 }
 
 function updateEnRouteLocations(state: ShiftState): void {

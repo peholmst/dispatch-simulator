@@ -69,18 +69,22 @@ function formatCoordinates(location: { lat: number; lon: number }): string {
   return `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`;
 }
 
-function UnitRow({ unit, selected, onToggle, onShow }: {
+function UnitRow({ unit, selected, onToggle, onShow, now }: {
   unit: UnitSimulationState;
   selected: boolean;
   onToggle: () => void;
   onShow: () => void;
+  now?: number;
 }) {
+  const etaSeconds = unit.arrivalAt === undefined || now === undefined
+    ? undefined
+    : Math.max(0, unit.arrivalAt - now);
   return (
     <label className={`unit-row ${selected ? "selected" : ""}`}>
       <input type="checkbox" checked={selected} onChange={onToggle} />
       <span className="callsign">{unit.callSign}</span>
       <span>{unit.status.replaceAll("_", " ")}</span>
-      <span>{unit.arrivalAt ? `ETA ${formatTime(unit.arrivalAt)}` : ""}</span>
+      <span>{etaSeconds !== undefined ? `ETA ${formatTime(etaSeconds)}` : ""}</span>
       <button type="button" className="show-unit" onClick={(event) => {
         event.preventDefault();
         onShow();
@@ -379,6 +383,8 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
   const [mapLoaded, setMapLoaded] = useState(false);
   const [highlightedUnitId, setHighlightedUnitId] = useState<string>();
   const bounds = shift?.config.region.bounds;
+  const boundsKey = bounds ? `${bounds.west}|${bounds.south}|${bounds.east}|${bounds.north}` : "";
+  const focusRequestToken = focusRequest?.token;
   const selectedUnitIdsKey = selectedUnitIds.join("|");
 
   useEffect(() => {
@@ -386,13 +392,10 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
       return;
     }
 
-    const center: [number, number] = bounds
-      ? [(bounds.west + bounds.east) / 2, (bounds.south + bounds.north) / 2]
-      : [23.76, 61.49];
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: mapStyle,
-      center,
+      center: [23.76, 61.49],
       zoom: 11,
       attributionControl: { compact: true }
     });
@@ -530,7 +533,7 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
       popupRef.current = null;
       setMapLoaded(false);
     };
-  }, [bounds]);
+  }, []);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -539,7 +542,7 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
     }
     const regionBounds: LngLatBoundsLike = [[bounds.west, bounds.south], [bounds.east, bounds.north]];
     map.fitBounds(regionBounds, { padding: 32, duration: 0 });
-  }, [bounds]);
+  }, [boundsKey]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -643,7 +646,7 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
     });
     const timeout = window.setTimeout(() => setHighlightedUnitId((current) => current === unit.id ? undefined : current), 1600);
     return () => window.clearTimeout(timeout);
-  }, [activeIncidentId, focusRequest, mapLoaded, onToggleUnit, selectedUnitIds, selectedUnitIdsKey, shift]);
+  }, [activeIncidentId, focusRequestToken, mapLoaded, onToggleUnit, selectedUnitIds, selectedUnitIdsKey]);
 
   return <div ref={containerRef} className="map-canvas" />;
 }
@@ -710,6 +713,41 @@ function App() {
   }, [priority, validPriorities]);
 
   useEffect(() => {
+    if (!shift || shift.status === "finished" || shift.clock.mode !== "running") {
+      return;
+    }
+
+    let inFlight = false;
+    let stopped = false;
+    const interval = window.setInterval(() => {
+      if (inFlight) {
+        return;
+      }
+      inFlight = true;
+      post<ApiState>("/api/shift/advance", { seconds: 1 })
+        .then((next) => {
+          if (!stopped) {
+            setError(undefined);
+            setApiState(next);
+          }
+        })
+        .catch((caught) => {
+          if (!stopped) {
+            setError(caught instanceof Error ? caught.message : String(caught));
+          }
+        })
+        .finally(() => {
+          inFlight = false;
+        });
+    }, 1000);
+
+    return () => {
+      stopped = true;
+      window.clearInterval(interval);
+    };
+  }, [shift?.clock.mode, shift?.status]);
+
+  useEffect(() => {
     if (shift?.incidents.length && (!activeIncidentId || !shift.incidents.some((item) => item.id === activeIncidentId))) {
       setActiveIncidentId(shift.incidents[0]!.id);
     }
@@ -720,7 +758,10 @@ function App() {
       <section className="toolbar">
         <div>
           <h1>Dispatch Simulator</h1>
-          <p>{shift ? `Shift ${shift.status} at ${formatTime(shift.clock.now)}` : "No active shift"}</p>
+          <p>{shift ? `Shift ${shift.status}` : "No active shift"}</p>
+          {shift && shift.status === "active" ? (
+            <output className="shift-clock" aria-label="Shift clock">{formatTime(shift.clock.now)}</output>
+          ) : null}
         </div>
         <input value={seed} onChange={(event) => setSeed(event.target.value)} aria-label="Seed" />
         <select value={scenarioId} onChange={(event) => {
@@ -846,6 +887,7 @@ function App() {
               unit={unit}
               selected={selectedUnits.includes(unit.id)}
               onToggle={() => toggleUnit(unit.id)}
+              now={shift?.clock.now}
               onShow={() => setMapFocusRequest({ unitId: unit.id, token: Date.now() })}
             />
           ))}

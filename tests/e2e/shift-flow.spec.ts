@@ -7,10 +7,14 @@ test("plays the first dispatch loop and shows debrief details", async ({ page })
   await page.getByLabel("Training scenario").selectOption("smoke_then_fire");
   await page.getByRole("button", { name: "Start" }).click();
 
-  await expect(page.getByText("Shift active at 00:00")).toBeVisible();
+  const clock = page.getByLabel("Shift clock");
+  await expect(page.getByText("Shift active")).toBeVisible();
+  await expect(clock).toHaveText("00:00");
+  await expect(clock).toHaveText(/00:0[1-9]/, { timeout: 4000 });
   await page.getByRole("button", { name: "Pause" }).click();
+  const pausedAt = await clock.textContent();
   await page.getByRole("button", { name: "+1 min" }).click();
-  await expect(page.getByText("Shift active at 00:00")).toBeVisible();
+  await expect(clock).toHaveText(pausedAt ?? "");
   await page.getByRole("button", { name: "Resume" }).click();
   await page.getByLabel("Simulation speed").selectOption("2");
 
