@@ -22,6 +22,7 @@ describe("configuration loading and validation", () => {
       "first_medical_call",
       "smoke_then_fire"
     ]);
+    expect(config.spawnLocations.every((location) => location.address.length > 0)).toBe(true);
     expect(config.resources).toHaveLength(10);
     expect(config.responsePlans).toHaveLength(9);
   });

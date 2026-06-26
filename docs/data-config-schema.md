@@ -574,6 +574,8 @@ Incident profiles declare allowed location types such as:
 
 Region data should include hand-authored spawn zones and/or OSM-derived candidate points.
 
+Spawn locations should include a stable ID, location type, dispatcher-visible street address, coordinates, and optional region tags. The active UI uses the address when dispatchers manually choose units for an incident.
+
 ## Validation
 
 Provide an automated config/content validation command.

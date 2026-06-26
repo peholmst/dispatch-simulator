@@ -65,6 +65,10 @@ function formatCapabilities(capabilities: Record<string, number>): string {
   return entries.length === 0 ? "none" : entries.map(([capability, value]) => `${capability} ${value}`).join(", ");
 }
 
+function formatCoordinates(location: { lat: number; lon: number }): string {
+  return `${location.lat.toFixed(4)}, ${location.lon.toFixed(4)}`;
+}
+
 function UnitRow({ unit, selected, onToggle, onShow }: {
   unit: UnitSimulationState;
   selected: boolean;
@@ -614,6 +618,9 @@ function App() {
   const config = shift?.config ?? apiState.config;
   const scenarios = config?.trainingScenarios ?? [];
   const incident = shift?.incidents.find((candidate) => candidate.id === activeIncidentId) ?? shift?.incidents[0];
+  const incidentLocation = incident
+    ? config?.spawnLocations.find((location) => location.id === incident.locationId)
+    : undefined;
   const dispatchCode = shift?.config.dispatchCodes.find((candidate) => candidate.id === code);
   const validPriorities = dispatchCode?.validPriorities ?? [];
   const paused = shift?.clock.mode === "paused";
@@ -719,6 +726,10 @@ function App() {
             <>
               <div className={`status ${incident.status}`}>{incident.status.replaceAll("_", " ")}</div>
               <p className="report">{incident.reportedAt === undefined ? `Report due ${formatTime(incident.reportDueAt)}` : incident.reportText}</p>
+              <div className="incident-address">
+                <strong>{incidentLocation?.address ?? formatCoordinates(incident.location)}</strong>
+                <span>{incidentLocation?.locationType.replaceAll("_", " ") ?? incident.locationId}</span>
+              </div>
               <p>{incident.windshieldReport ?? "Awaiting first-arrival report"}</p>
               <div className="facts">
                 <span>Stage {incident.stageId}</span>

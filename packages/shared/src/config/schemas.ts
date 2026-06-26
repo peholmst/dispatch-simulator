@@ -115,6 +115,7 @@ export const regionSchema = z.object({
 export const spawnLocationSchema = z.object({
   id: idSchema,
   locationType: idSchema,
+  address: z.string().min(1),
   coordinates: coordinateSchema,
   regionTags: z.array(idSchema).optional().default([])
 });

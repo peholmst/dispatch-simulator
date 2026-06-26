@@ -1,5 +1,6 @@
 - id: kaleva_apartment_1
   locationType: residential_building
+  address: Sammonkatu 42, Tampere
   coordinates:
     lat: 61.5008
     lon: 23.7998
@@ -7,6 +8,7 @@
     - urban
 - id: hervanta_apartment_1
   locationType: residential_building
+  address: Insinoorinkatu 48, Tampere
   coordinates:
     lat: 61.4498
     lon: 23.8525
@@ -14,6 +16,7 @@
     - urban
 - id: central_square_venue
   locationType: public_venue
+  address: Keskustori 1, Tampere
   coordinates:
     lat: 61.4982
     lon: 23.7608
@@ -21,6 +24,7 @@
     - urban
 - id: ratina_mall
   locationType: public_venue
+  address: Vuolteenkatu 1, Tampere
   coordinates:
     lat: 61.4932
     lon: 23.7644
@@ -29,6 +33,7 @@
     - commercial
 - id: koskipuisto_office
   locationType: commercial_building
+  address: Koskikatu 7, Tampere
   coordinates:
     lat: 61.5003
     lon: 23.7669
@@ -37,6 +42,7 @@
     - commercial
 - id: tesoma_apartment_1
   locationType: residential_building
+  address: Tesomankatu 2, Tampere
   coordinates:
     lat: 61.5066
     lon: 23.6302
@@ -44,6 +50,7 @@
     - suburban
 - id: linnainmaa_market
   locationType: commercial_building
+  address: Maentakusenkatu 1, Tampere
   coordinates:
     lat: 61.5192
     lon: 23.8481
