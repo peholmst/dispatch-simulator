@@ -41,6 +41,7 @@ export function buildPointFeatures(
   highlightedUnitId?: string
 ): MapFeature[] {
   const selected = new Set(selectedUnitIds);
+  const spawnLocationsById = new Map(shift.config.spawnLocations.map((location) => [location.id, location]));
   return [
     ...shift.config.stations.map((station) => ({
       type: "Feature" as const,
@@ -57,7 +58,9 @@ export function buildPointFeatures(
       properties: {
         kind: "incident",
         id: incidentItem.id,
-        label: incidentItem.id === activeIncidentId ? "Active" : incidentItem.displayName,
+        label: `${incidentItem.selectedCode ?? "-"}-${incidentItem.selectedPriority ?? "-"}`,
+        name: incidentItem.displayName,
+        address: spawnLocationsById.get(incidentItem.locationId)?.address ?? incidentItem.locationId,
         active: incidentItem.id === activeIncidentId
       },
       geometry: { type: "Point" as const, coordinates: [incidentItem.location.lon, incidentItem.location.lat] }

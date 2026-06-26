@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadConfig, startShift } from "@dispatch-simulator/shared";
+import { advanceSimulation, classifyIncident, loadConfig, startShift } from "@dispatch-simulator/shared";
 import { buildPointFeatures, featuresAtSameLocation, pointFeaturesByKind, unitMapStatus } from "./mapFeatures";
 
 describe("map features", () => {
@@ -28,6 +28,28 @@ describe("map features", () => {
 
     expect(colocated.some((feature) => feature.properties.kind === "station" && feature.properties.id === station.id)).toBe(true);
     expect(colocated.filter((feature) => feature.properties.kind === "unit").length).toBeGreaterThan(0);
+  });
+
+  it("labels reported incidents with classification and exposes the hover address", async () => {
+    const config = await loadConfig();
+    let shift = startShift(config, { seed: "map-incident-label-test", scenarioId: "first_medical_call" });
+    const incident = shift.incidents[0]!;
+    shift = advanceSimulation(shift, incident.reportDueAt);
+    shift = classifyIncident(shift, incident.id, "704", "B");
+
+    const points = buildPointFeatures(shift, incident.id);
+    const incidents = pointFeaturesByKind(points, "incident").features;
+    const location = config.spawnLocations.find((candidate) => candidate.id === incident.locationId)!;
+
+    expect(incidents).toHaveLength(1);
+    expect(incidents[0]!.properties).toMatchObject({
+      kind: "incident",
+      id: incident.id,
+      label: "704-B",
+      name: incident.displayName,
+      address: location.address,
+      active: true
+    });
   });
 
   it("encodes unit status for map styling", () => {

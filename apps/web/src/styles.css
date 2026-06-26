@@ -314,7 +314,10 @@ button.map-popup-row {
 }
 
 .map-popup-row.incident {
+  align-items: flex-start;
   border-left: 5px solid #c94f39;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .map-popup-row.hospital {
@@ -330,6 +333,10 @@ button.map-popup-row {
   font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
+}
+
+.map-popup-row.incident small {
+  text-transform: none;
 }
 
 .timeline ol {

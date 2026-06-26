@@ -310,10 +310,16 @@ function popupContent(features: MapFeature[], options: {
       row.setAttribute("type", "button");
       row.setAttribute("data-unit-id", String(feature.properties.id));
     }
-    const label = escapeHtml(feature.properties.label);
+    const labelText = feature.properties.kind === "incident" && feature.properties.name
+      ? `${feature.properties.name} (${feature.properties.label})`
+      : feature.properties.label;
+    const label = escapeHtml(labelText);
     const status = feature.properties.status ? ` <small>${escapeHtml(String(feature.properties.status).replaceAll("_", " "))}</small>` : "";
+    const address = feature.properties.kind === "incident" && feature.properties.address
+      ? ` <small>${escapeHtml(feature.properties.address)}</small>`
+      : "";
     const selectedText = feature.properties.kind === "unit" && selected.has(String(feature.properties.id)) ? " <small>selected</small>" : "";
-    row.innerHTML = `<span>${label}</span>${status}${selectedText}`;
+    row.innerHTML = `<span>${label}</span>${status}${address}${selectedText}`;
     list.append(row);
   }
   container.append(list);
@@ -473,6 +479,23 @@ function MapView({ shift, activeIncidentId, selectedUnitIds, onToggleUnit, focus
           "text-color": "#17211b",
           "text-halo-color": "#ffffff",
           "text-halo-width": 1.2
+        }
+      });
+      map.addLayer({
+        id: "incident-labels",
+        type: "symbol",
+        source: "incidents",
+        layout: {
+          "text-field": ["get", "label"],
+          "text-size": 12,
+          "text-offset": [0, 1.25],
+          "text-anchor": "top",
+          "text-allow-overlap": true
+        },
+        paint: {
+          "text-color": "#17211b",
+          "text-halo-color": "#ffffff",
+          "text-halo-width": 1.4
         }
       });
       setMapLoaded(true);
